@@ -36,6 +36,7 @@ export function HeatMap({
 }: HeatMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const zoomRef = useRef<any>(null);
 
   const render = useCallback(() => {
     if (!containerRef.current || nodes.length === 0) return;
@@ -57,14 +58,32 @@ export function HeatMap({
 
     const g = svg.append('g');
 
+    // Add glowing filter definitions for the nodes (Requirement 5)
+    const defs = svg.append('defs');
+    const glowFilter = defs.append('filter')
+      .attr('id', 'node-glow')
+      .attr('x', '-100%')
+      .attr('y', '-100%')
+      .attr('width', '300%')
+      .attr('height', '300%');
+    
+    glowFilter.append('feGaussianBlur')
+      .attr('stdDeviation', '6')
+      .attr('result', 'blur');
+      
+    const feMerge = glowFilter.append('feMerge');
+    feMerge.append('feMergeNode').attr('in', 'blur');
+    feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.2, 4])
+      .scaleExtent([0.15, 5])
       .on('zoom', (event) => {
         g.attr('transform', event.transform);
       });
 
     svg.call(zoom);
+    zoomRef.current = zoom;
 
     const simNodes: SimNode[] = nodes.map((n) => ({
       id: n.id,
@@ -92,20 +111,42 @@ export function HeatMap({
         d3
           .forceLink(simLinks)
           .id((d) => (d as SimNode).id)
-          .distance(80)
-          .strength(0.3)
+          .distance(90)
+          .strength(0.35)
       )
-      .force('charge', d3.forceManyBody().strength(-200))
+      .force('charge', d3.forceManyBody().strength(-220))
       .force('center', d3.forceCenter(w / 2, h / 2))
-      .force('collision', d3.forceCollide().radius((d) => radius(d as SimNode) + 4));
+      .force('collision', d3.forceCollide().radius((d) => radius(d as SimNode, selectedId) + 6));
 
+    // Dynamic dashed thin link edges
     const link = g
       .append('g')
-      .attr('stroke', 'rgba(148, 163, 184, 0.2)')
+      .attr('stroke', 'rgba(176, 122, 77, 0.15)')
       .selectAll('line')
       .data(simLinks)
       .join('line')
-      .attr('stroke-width', (d) => Math.sqrt(d.weight) * 0.3 + 0.5);
+      .attr('stroke-width', (d) => Math.sqrt(d.weight) * 0.15 + 0.35)
+      .attr('stroke-dasharray', '3,3')
+      .attr('opacity', 0.55);
+
+    // Dynamic Concentric Rings for Selected Node under node groups
+    let glowCircle1: any;
+    let glowCircle2: any;
+    if (selectedId) {
+      glowCircle1 = g.append('circle')
+        .attr('fill', 'none')
+        .attr('stroke', 'rgba(176, 122, 77, 0.35)')
+        .attr('stroke-width', 2.5)
+        .attr('opacity', 0.8)
+        .attr('class', 'glow-pulse');
+
+      glowCircle2 = g.append('circle')
+        .attr('fill', 'none')
+        .attr('stroke', 'rgba(176, 122, 77, 0.15)')
+        .attr('stroke-width', 1.25)
+        .attr('opacity', 0.5)
+        .attr('class', 'glow-pulse');
+    }
 
     const dragBehavior = d3
       .drag<SVGCircleElement, SimNode>()
@@ -129,16 +170,36 @@ export function HeatMap({
       .selectAll<SVGCircleElement, SimNode>('circle')
       .data(simNodes)
       .join('circle')
-      .attr('r', (d) => radius(d))
+      .attr('r', (d) => radius(d, selectedId))
       .attr('fill', (d) => scoreColor(d.debt_score))
-      .attr('stroke', (d) => (d.id === selectedId ? '#fff' : 'rgba(255,255,255,0.15)'))
-      .attr('stroke-width', (d) => (d.id === selectedId ? 3 : 1))
-      .attr('opacity', 0.85)
+      .attr('stroke', (d) => (d.id === selectedId ? '#b07a4d' : 'rgba(176, 122, 77, 0.25)'))
+      .attr('stroke-width', (d) => (d.id === selectedId ? 4 : 1.25))
+      .attr('opacity', (d) => (d.id === selectedId ? 1 : 0.85))
+      .attr('filter', (d) => (d.id === selectedId ? 'url(#node-glow)' : null))
       .style('cursor', 'pointer')
       .on('click', (event, d) => {
         event.stopPropagation();
         const full = nodes.find((n) => n.id === d.id) ?? null;
         onSelect(full);
+      })
+      .on('mouseover', function(event, d) {
+        d3.select(this)
+          .transition()
+          .duration(200)
+          .attr('r', radius(d, selectedId) * 1.2)
+          .attr('opacity', 1)
+          .attr('stroke-width', 2.5)
+          .attr('filter', 'url(#node-glow)');
+      })
+      .on('mouseout', function(event, d) {
+        const isSelected = d.id === selectedId;
+        d3.select(this)
+          .transition()
+          .duration(200)
+          .attr('r', radius(d, selectedId))
+          .attr('opacity', isSelected ? 1 : 0.85)
+          .attr('stroke-width', isSelected ? 4 : 1.25)
+          .attr('filter', isSelected ? 'url(#node-glow)' : null);
       });
 
     node.call(dragBehavior);
@@ -149,10 +210,11 @@ export function HeatMap({
       .data(simNodes.filter((d) => d.debt_score >= 60))
       .join('text')
       .text((d) => d.symbol_name)
-      .attr('font-size', 9)
-      .attr('fill', 'rgba(241, 245, 249, 0.7)')
+      .attr('font-size', 9.5)
+      .attr('font-weight', '650')
+      .attr('fill', '#6b5b4d') // Secondary warm brown text
       .attr('text-anchor', 'middle')
-      .attr('dy', (d) => -radius(d) - 4)
+      .attr('dy', (d) => -radius(d, selectedId) - 6)
       .style('pointer-events', 'none');
 
     simulation.on('tick', () => {
@@ -164,6 +226,15 @@ export function HeatMap({
 
       node.attr('cx', (d) => d.x ?? 0).attr('cy', (d) => d.y ?? 0);
       label.attr('x', (d) => d.x ?? 0).attr('y', (d) => d.y ?? 0);
+
+      if (selectedId && glowCircle1 && glowCircle2) {
+        const sel = simNodes.find(n => n.id === selectedId);
+        if (sel) {
+          const baseR = radius(sel, selectedId);
+          glowCircle1.attr('cx', sel.x ?? 0).attr('cy', sel.y ?? 0).attr('r', baseR + 8);
+          glowCircle2.attr('cx', sel.x ?? 0).attr('cy', sel.y ?? 0).attr('r', baseR + 18);
+        }
+      }
     });
 
     svg.on('click', () => onSelect(null));
@@ -179,13 +250,76 @@ export function HeatMap({
   return (
     <div
       ref={containerRef}
-      className="graph-container w-full h-full min-h-[400px] bg-navy-900/50 rounded-xl overflow-hidden"
-    />
+      className="graph-container w-full h-full min-h-[480px] bg-gradient-to-tr from-[#f7f2ec]/50 to-[#fffdf9]/90 border border-[rgba(176,122,77,0.14)] shadow-inner rounded-[30px] overflow-hidden relative"
+    >
+      {/* Dynamic Ambient Background Glow */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(176,122,77,0.05),transparent_65%)] pointer-events-none" />
+
+      {/* Floating Graph Controls Stacked Vertically Top-Right */}
+      <div className="absolute top-5 right-5 flex flex-col gap-1 z-20">
+        <button
+          onClick={() => {
+            if (svgRef.current && zoomRef.current) {
+              d3.select(svgRef.current).transition().duration(200).call(zoomRef.current.scaleBy, 1.35);
+            }
+          }}
+          className="w-10 h-10 flex items-center justify-center bg-[#fffdf9]/95 hover:bg-[#f7f2ec] text-[#6b5b4d] font-bold text-lg rounded-xl border border-[rgba(176,122,77,0.14)] shadow-sm hover:shadow transition-all active:scale-95"
+          title="Zoom In"
+        >
+          ＋
+        </button>
+        <button
+          onClick={() => {
+            if (svgRef.current && zoomRef.current) {
+              d3.select(svgRef.current).transition().duration(200).call(zoomRef.current.scaleBy, 0.75);
+            }
+          }}
+          className="w-10 h-10 flex items-center justify-center bg-[#fffdf9]/95 hover:bg-[#f7f2ec] text-[#6b5b4d] font-bold text-lg rounded-xl border border-[rgba(176,122,77,0.14)] shadow-sm hover:shadow transition-all active:scale-95"
+          title="Zoom Out"
+        >
+          －
+        </button>
+        <button
+          onClick={() => {
+            if (svgRef.current && zoomRef.current) {
+              d3.select(svgRef.current).transition().duration(250).call(zoomRef.current.transform, d3.zoomIdentity);
+            }
+          }}
+          className="w-10 h-10 flex items-center justify-center bg-[#fffdf9]/95 hover:bg-[#f7f2ec] text-[#6b5b4d] font-bold text-sm rounded-xl border border-[rgba(176,122,77,0.14)] shadow-sm hover:shadow transition-all active:scale-95"
+          title="Reset Zoom"
+        >
+          ⟲
+        </button>
+      </div>
+
+      {/* Floating Graph Legend Bottom-Left */}
+      <div className="absolute bottom-5 left-5 flex flex-wrap items-center gap-4 bg-[#fffdf9]/95 backdrop-blur px-5 py-3 rounded-full border border-[rgba(176,122,77,0.14)] shadow-md z-20 text-xs font-semibold text-[#6b5b4d]">
+        <span className="text-[10px] uppercase tracking-wider text-[#8f8175] font-extrabold mr-1">Debt Score:</span>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-[#93ab68] inline-block shadow-sm" />
+          <span>0 - 10</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-[#f1c04e] inline-block shadow-sm" />
+          <span>11 - 25</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-[#f0a03c] inline-block shadow-sm" />
+          <span>26 - 50</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-[#e16a4f] inline-block shadow-sm" />
+          <span>51 - 100</span>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function radius(d: SimNode): number {
-  return Math.max(6, Math.min(24, 6 + d.blast_radius * 0.3 + d.debt_score * 0.08));
+function radius(d: SimNode, selectedId: string | null): number {
+  const base = Math.max(6, Math.min(24, 6 + d.blast_radius * 0.35 + d.debt_score * 0.08));
+  if (d.id === selectedId) return base * 1.35; // Selected node is 35% larger
+  return base;
 }
 
 function getLinkNode(endpoint: SimNode | string): SimNode {

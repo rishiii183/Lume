@@ -1,4 +1,4 @@
-import SimHash from 'simhash-js';
+import simhash from 'simhash';
 import type { ParsedFile } from '@/types';
 
 const SHINGLE_SIZE = 3;
@@ -6,24 +6,54 @@ const SHINGLE_SIZE = 3;
 export function computeDuplicationScores(
   files: ParsedFile[]
 ): Map<string, number> {
-  const fileHashes: { path: string; hash: string }[] = [];
-  const simhash = new SimHash();
+  const fileHashes: { path: string; hash: number[] }[] = [];
+  
+  // Safe initialization of simhash using 'md5' algorithm
+  let hasher: (tokens: string[]) => number[];
+  try {
+    hasher = simhash('md5');
+  } catch (err) {
+    console.error('Failed to initialize simhash with md5, falling back to default:', err);
+    try {
+      hasher = simhash();
+    } catch (err2) {
+      console.error('Failed to initialize default simhash, using fallback stub:', err2);
+      hasher = () => [];
+    }
+  }
 
   for (const file of files) {
-    const shingles = tokenize(file.content);
-    if (shingles.length === 0) continue;
-    const hash = simhash.hash(shingles.join(' '));
-    fileHashes.push({ path: file.path, hash });
+    try {
+      const shingles = tokenize(file.content);
+      if (shingles.length === 0) continue;
+      // Generate the simhash array of bits safely
+      const hash = hasher(shingles);
+      fileHashes.push({ path: file.path, hash });
+    } catch (err) {
+      console.error(`Failed to generate simhash for file ${file.path}:`, err);
+      // Keep going, don't crash the pipeline
+    }
   }
 
   const scores = new Map<string, number>();
 
   for (let i = 0; i < fileHashes.length; i++) {
     let maxSimilarity = 0;
+    const hashA = fileHashes[i].hash;
+
+    if (hashA.length === 0) {
+      scores.set(fileHashes[i].path, 0);
+      continue;
+    }
+
     for (let j = 0; j < fileHashes.length; j++) {
       if (i === j) continue;
-      const distance = hammingDistance(fileHashes[i].hash, fileHashes[j].hash);
-      const similarity = 1 - distance / 256;
+      const hashB = fileHashes[j].hash;
+      if (hashB.length === 0) continue;
+
+      const distance = hammingDistance(hashA, hashB);
+      const maxBits = Math.max(hashA.length, hashB.length);
+      const similarity = maxBits > 0 ? 1 - distance / maxBits : 0;
       if (similarity > maxSimilarity) maxSimilarity = similarity;
     }
     scores.set(fileHashes[i].path, Math.max(0, maxSimilarity));
@@ -47,12 +77,13 @@ function tokenize(content: string): string[] {
   return shingles.length > 0 ? shingles : tokens.slice(0, 50);
 }
 
-function hammingDistance(a: string, b: string): number {
+function hammingDistance(a: number[], b: number[]): number {
   const len = Math.min(a.length, b.length);
-  let distance = Math.abs(a.length - b.length) * 4;
+  let distance = Math.abs(a.length - b.length);
   for (let i = 0; i < len; i++) {
-    const x = parseInt(a[i], 16) ^ parseInt(b[i], 16);
-    distance += (x & 8 ? 1 : 0) + (x & 4 ? 1 : 0) + (x & 2 ? 1 : 0) + (x & 1 ? 1 : 0);
+    if (a[i] !== b[i]) {
+      distance++;
+    }
   }
   return distance;
 }

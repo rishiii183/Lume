@@ -24,10 +24,10 @@ export function formatScore(score: number): string {
 }
 
 export function scoreColor(score: number): string {
-  if (score >= 75) return '#fb7185';
-  if (score >= 50) return '#fbbf24';
-  if (score >= 25) return '#22d3ee';
-  return '#34d399';
+  if (score >= 75) return '#e16a4f'; // CRITICAL NODE: #e16a4f
+  if (score >= 50) return '#f0a03c'; // HIGH NODE: #f0a03c
+  if (score >= 25) return '#f1c04e'; // MEDIUM NODE: #f1c04e
+  return '#93ab68';                  // SUCCESS NODE: #93ab68
 }
 
 export function delay(ms: number): Promise<void> {

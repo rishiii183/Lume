@@ -41,9 +41,9 @@ importers:
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
-      simhash-js:
-        specifier: ^1.0.0
-        version: 1.0.0
+      simhash:
+        specifier: ^0.1.0
+        version: 0.1.0
     devDependencies:
       '@types/d3':
         specifier: ^7.4.3
@@ -824,6 +824,9 @@ packages:
     resolution: {integrity: sha512-48xSriZYYg+8qXna9kwqjIVzuQxi+KYWp2+5nCYnYKPTr0LvD89Jqk2Or5ogxz0NUMfIjhh2lIUX/LyX9B4oIg==}
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
+
+  buffer-crc32@0.1.1:
+    resolution: {integrity: sha512-UsRYbAdoR39JogmdI9AeZFQrmf0aqdPOzNLh5NR7GBdGNwxXW4eKqUvgZ+B9ImebovILBxiqSnoX9BfNRsh9bA==}
 
   busboy@1.6.0:
     resolution: {integrity: sha512-8SFQbg/0hQ9xy3UNTB0YEnsNBbWfhf7RtnzpL7TkBiTBRfrQ9Fxcnz7VJsleJpyp6rVLvXiuORqjlHi5q+PYuA==}
@@ -2027,8 +2030,9 @@ packages:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
 
-  simhash-js@1.0.0:
-    resolution: {integrity: sha512-0amkwlDBXWWidaAXVpiZVF6xYNS8qG3mBbGcLRcyaAPsFDcsoaMxocBc08hrxI0dDDnd4IbfRkTJpTxks79/tg==}
+  simhash@0.1.0:
+    resolution: {integrity: sha512-R90I2aPMhF0vFXnupeO0hApazJJKb9cHLUdEEpzpXG4nVyI2LdkOPnTnX8UasWXDeIhsp/Yd035fnJ8l4jqn0w==}
+    engines: {node: '0.8', npm: '1'}
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -3064,6 +3068,8 @@ snapshots:
       electron-to-chromium: 1.5.361
       node-releases: 2.0.46
       update-browserslist-db: 1.2.3(browserslist@4.28.2)
+
+  buffer-crc32@0.1.1: {}
 
   busboy@1.6.0:
     dependencies:
@@ -4466,7 +4472,9 @@ snapshots:
 
   signal-exit@4.1.0: {}
 
-  simhash-js@1.0.0: {}
+  simhash@0.1.0:
+    dependencies:
+      buffer-crc32: 0.1.1
 
   source-map-js@1.2.1: {}
 

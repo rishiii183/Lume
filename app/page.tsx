@@ -70,35 +70,39 @@ export default function HomePage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 fade-in-up">
       <section className="text-center mb-16">
-        <div className="inline-flex items-center gap-2 glass-panel rounded-full px-4 py-1.5 text-sm text-accent-cyan mb-6">
+        <div className="inline-flex items-center gap-2 bg-[#efe8de] border border-[rgba(176,123,79,0.15)] rounded-full px-4.5 py-1.5 text-sm text-[#b07b4f] font-semibold mb-6 shadow-sm">
           <Radar className="w-4 h-4" />
           Hackathon MVP — Production Ready
         </div>
-        <h1 className="text-4xl sm:text-6xl font-bold tracking-tight mb-6">
+        <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight mb-6 text-slate-900 leading-tight">
           Map Your{' '}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-cyan to-accent-emerald">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#b07b4f] to-[#8c6239]">
             Technical Debt
           </span>
         </h1>
-        <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-10">
+        <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
           Paste a GitHub repo URL. DebtRadar fetches code, runs AST analysis,
           scores debt hotspots, and visualizes blast radius — with AI explanations
           powered by Hugging Face.
         </p>
-        <URLInput onSubmit={handleAnalyze} loading={loading} />
+        <div className="flex justify-center">
+          <URLInput onSubmit={handleAnalyze} loading={loading} />
+        </div>
         {error && (
-          <p className="mt-4 text-accent-rose text-sm">{error}</p>
+          <p className="mt-4 text-accent-rose text-sm font-semibold">{error}</p>
         )}
       </section>
 
-      <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {FEATURES.map((f) => (
-          <div key={f.title} className="glass-panel rounded-xl p-5 hover:border-accent-cyan/20 transition-colors">
-            <f.icon className="w-8 h-8 text-accent-cyan mb-3" />
-            <h3 className="font-semibold text-slate-200 mb-1">{f.title}</h3>
-            <p className="text-sm text-slate-400">{f.desc}</p>
+          <div key={f.title} className="glass-panel rounded-3xl p-6 hover-lift bg-gradient-to-br from-[#fffaf5] to-[#f5efe7]/50 border border-[rgba(176,123,79,0.08)]">
+            <div className="inline-flex p-3 bg-[#f5efe7] rounded-2xl mb-4 text-[#b07b4f]">
+              <f.icon className="w-6 h-6" />
+            </div>
+            <h3 className="font-bold text-slate-800 text-lg mb-2">{f.title}</h3>
+            <p className="text-sm text-slate-500 leading-relaxed font-medium">{f.desc}</p>
           </div>
         ))}
       </section>

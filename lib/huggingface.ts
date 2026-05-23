@@ -27,40 +27,94 @@ async function callHF(
 ): Promise<string> {
   const apiKey = process.env.HUGGINGFACE_API_KEY;
   if (!apiKey) {
-    throw new Error('HUGGINGFACE_API_KEY is not configured');
+    throw new Error('Environment variable HUGGINGFACE_API_KEY is missing or undefined');
   }
 
-  const response = await fetch(`${HF_API}/${model}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      inputs,
-      parameters: {
-        max_new_tokens: options?.max_new_tokens ?? 256,
-        return_full_text: false,
-        temperature: 0.3,
-      },
-      options: {
-        wait_for_model: options?.wait_for_model ?? true,
-      },
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds timeout (Requirement 14)
 
-  if (!response.ok) {
-    const errText = await response.text();
-    if (response.status === 503 && model !== FALLBACK_MODEL) {
-      return callHF(FALLBACK_MODEL, inputs, options);
+  try {
+    const response = await fetch(`${HF_API}/${model}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        inputs,
+        parameters: {
+          max_new_tokens: options?.max_new_tokens ?? 300, // Default to 300 (Requirement 5)
+        },
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    console.log("[Explain] Response status:", response.status);
+
+    const text = await response.text();
+    console.log("[Explain] Response text:", text);
+
+    if (!response.ok) {
+      if (response.status === 503 && model !== FALLBACK_MODEL) {
+        console.warn(`[HuggingFace] Model 503 unavailable. Retrying with fallback model...`);
+        return callHF(FALLBACK_MODEL, inputs, options);
+      }
+      throw new Error(`HF API Error ${response.status}: ${text}`);
     }
-    throw new Error(`HuggingFace API error (${response.status}): ${errText}`);
+
+    let data: any;
+    try {
+      data = JSON.parse(text) as HFTextResponse[] | HFTextResponse;
+    } catch (parseErr) {
+      throw new Error(`Failed to parse HuggingFace response as JSON: ${text}`);
+    }
+
+    const result = Array.isArray(data) ? data[0] : data;
+    if (result?.error) throw new Error(result.error);
+    return (result?.generated_text ?? '').trim();
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+export function generateHeuristicExplanation(context: {
+  filePath: string;
+  symbolName: string;
+  debtScore: number;
+  complexity: number;
+  blastRadius: number;
+}): string {
+  const parts: string[] = [];
+  const filename = context.filePath.split('/').pop() || 'file';
+  
+  if (context.debtScore > 75) {
+    parts.push(`The symbol '${context.symbolName}' in ${filename} represents critical technical debt with a score of ${context.debtScore}/100.`);
+  } else if (context.debtScore > 50) {
+    parts.push(`The symbol '${context.symbolName}' in ${filename} carries moderate technical debt with a score of ${context.debtScore}/100.`);
+  } else {
+    parts.push(`The symbol '${context.symbolName}' in ${filename} is well-structured with a low technical debt score of ${context.debtScore}/100.`);
   }
 
-  const data = (await response.json()) as HFTextResponse[] | HFTextResponse;
-  const result = Array.isArray(data) ? data[0] : data;
-  if (result?.error) throw new Error(result.error);
-  return (result?.generated_text ?? '').trim();
+  if (context.complexity > 15) {
+    parts.push(`It has highly complex logic structure (cyclomatic complexity ${context.complexity}), making it prone to errors during updates.`);
+  } else if (context.complexity > 5) {
+    parts.push(`It contains moderate logical branching (complexity ${context.complexity}) which warrants sub-routine extraction.`);
+  }
+
+  if (context.blastRadius > 5) {
+    parts.push(`A massive blast radius of ${context.blastRadius} means this node has tight coupling across the system; changing it presents a major regression risk.`);
+  } else if (context.blastRadius > 0) {
+    parts.push(`Its blast radius of ${context.blastRadius} indicates localized coupling with moderate ripple effect risks.`);
+  } else {
+    parts.push(`With a blast radius of 0, this node is isolated and highly safe to modify or refactor without side effects.`);
+  }
+
+  parts.push(`We recommend extracting complex branching sections and consolidating duplicate helper logic to improve readability.`);
+  
+  return parts.join(' ');
 }
 
 export async function generateDebtExplanation(context: {
@@ -71,28 +125,42 @@ export async function generateDebtExplanation(context: {
   blastRadius: number;
   codeSnippet: string;
 }): Promise<string> {
+  // Truncate fields to verify and handle token limits (Requirement 16)
+  const truncatedPath = (context.filePath || '').slice(0, 200);
+  const truncatedSymbol = (context.symbolName || '').slice(0, 100);
+  const truncatedCode = (context.codeSnippet || '').slice(0, 1000);
+
   const prompt = `<s>[INST] You are a senior software architect analyzing technical debt.
 
 Analyze this code symbol and explain its technical debt in 2-3 concise sentences. Focus on maintainability risks, coupling, and refactoring priority.
 
-File: ${context.filePath}
-Symbol: ${context.symbolName}
+File: ${truncatedPath}
+Symbol: ${truncatedSymbol}
 Debt Score: ${context.debtScore}/100
 Complexity: ${context.complexity}
 Blast Radius: ${context.blastRadius} dependent symbols
 
 Code:
 \`\`\`
-${context.codeSnippet.slice(0, 1500)}
+${truncatedCode}
 \`\`\`
 
 Provide a clear, actionable explanation. [/INST]`;
 
+  console.log("[Explain] Prompt length:", prompt.length);
+  console.log("[Explain] Calling HuggingFace...");
+
   try {
-    return await callHF(EXPLANATION_MODEL, prompt, { max_new_tokens: 200 });
-  } catch {
-    const fallbackPrompt = `Explain technical debt for ${context.symbolName} in ${context.filePath} (score ${context.debtScore}): ${context.codeSnippet.slice(0, 500)}`;
-    return await callHF(FALLBACK_MODEL, fallbackPrompt, { max_new_tokens: 150 });
+    return await callHF(EXPLANATION_MODEL, prompt, { max_new_tokens: 300 });
+  } catch (err) {
+    console.warn("[HuggingFace] Primary model failed due to offline state or timeout. Attempting fallback model...");
+    try {
+      const fallbackPrompt = `Explain technical debt for ${truncatedSymbol} in ${truncatedPath} (score ${context.debtScore}): ${truncatedCode.slice(0, 400)}`;
+      return await callHF(FALLBACK_MODEL, fallbackPrompt, { max_new_tokens: 150 });
+    } catch (fallbackErr) {
+      console.warn("[HuggingFace] Fallback model also failed (network unreachable). Gracefully fallback to custom local heuristic explanation.");
+      return generateHeuristicExplanation(context);
+    }
   }
 }
 

@@ -43,21 +43,21 @@ export default function RoadmapPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 fade-in-up">
       <div className="flex items-center gap-4 mb-8">
         <Link
           href={`/analyze/${analysisId}`}
-          className="glass-panel p-2 rounded-lg text-slate-400 hover:text-accent-cyan transition-colors"
+          className="flex items-center justify-center p-2.5 bg-[#efe8de]/70 hover:bg-[#e5d9c8] border border-[rgba(176,123,79,0.2)] rounded-xl text-[#b07b4f] shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0"
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <Radar className="w-5 h-5 text-accent-cyan" />
-            <h1 className="text-2xl font-bold">Refactoring Roadmap</h1>
+            <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Refactoring Roadmap</h1>
           </div>
           {analysis && (
-            <p className="text-slate-400 text-sm mt-1">
+            <p className="text-slate-500 text-sm mt-1.5 font-bold">
               {analysis.repo_owner}/{analysis.repo_name} — prioritized by debt score
               and blast radius
             </p>
@@ -72,7 +72,7 @@ export default function RoadmapPage() {
             confidence={analysis?.fingerprint_confidence}
           />
           {analysis && (
-            <div className="glass-panel rounded-xl p-4 mt-4 space-y-2 text-sm">
+            <div className="glass-panel rounded-3xl p-5 mt-4 space-y-3.5 text-sm border border-[rgba(176,123,79,0.12)] shadow-md bg-white/40">
               <Stat label="Total Nodes" value={analysis.total_nodes} />
               <Stat label="Avg Debt Score" value={analysis.avg_debt_score} />
               <Stat label="Files Scanned" value={analysis.total_files} />
@@ -89,9 +89,9 @@ export default function RoadmapPage() {
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-slate-500">{label}</span>
-      <span className="text-slate-200 font-medium">{value}</span>
+    <div className="flex justify-between items-center">
+      <span className="text-slate-500 font-bold">{label}</span>
+      <span className="text-slate-800 font-extrabold font-mono">{value}</span>
     </div>
   );
 }

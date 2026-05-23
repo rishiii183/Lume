@@ -47,12 +47,18 @@ export async function updateAnalysisProgress(
     fingerprint_confidence: number;
   }>
 ) {
-  const supabase = createServiceClient();
-  const { error } = await supabase
-    .from('analyses')
-    .update(updates)
-    .eq('id', analysisId);
-  if (error) throw new Error(`Failed to update analysis: ${error.message}`);
+  try {
+    const supabase = createServiceClient();
+    const { error } = await supabase
+      .from('analyses')
+      .update(updates)
+      .eq('id', analysisId);
+    if (error) {
+      console.error(`[Supabase Error] Failed to update progress for ${analysisId}: ${error.message}`);
+    }
+  } catch (err) {
+    console.error(`[Supabase Error] Exception thrown during update progress for ${analysisId}:`, err);
+  }
 }
 
 export async function getAnalysis(id: string): Promise<AnalysisRecord | null> {

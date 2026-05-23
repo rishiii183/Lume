@@ -1,7 +1,7 @@
 -- DebtRadar Supabase schema
 -- Run in Supabase SQL editor
 
-create extension if not exists "uuid-ossp";
+create extension if not exists "pgcrypto";
 
 create table if not exists public.analyses (
   id uuid primary key default gen_random_uuid(),

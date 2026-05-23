@@ -17,12 +17,12 @@ export function LoadingState({
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-8">
       <div className="relative">
-        <Radar className="w-16 h-16 text-accent-cyan animate-pulse" />
-        <Loader2 className="w-8 h-8 text-accent-amber absolute -bottom-1 -right-1 animate-spin" />
+        <Radar className="w-16 h-16 text-[#b07b4f] animate-pulse" />
+        <Loader2 className="w-8 h-8 text-[#e0b04b] absolute -bottom-1 -right-1 animate-spin" />
       </div>
       <div className="text-center">
-        <h2 className="text-xl font-semibold text-slate-100 mb-2">{title}</h2>
-        <p className="text-slate-400 text-sm max-w-md">
+        <h2 className="text-xl font-bold text-slate-800 mb-2">{title}</h2>
+        <p className="text-slate-500 text-sm max-w-md font-medium leading-relaxed">
           Scanning AST, computing debt scores, and building dependency graph...
         </p>
       </div>
