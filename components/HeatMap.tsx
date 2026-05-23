@@ -100,6 +100,21 @@ export function HeatMap({
     securityMerge.append('feMergeNode').attr('in', 'blur');
     securityMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
+    // Standard node drop-shadow to make nodes pop and feel 3D (Requirement: visible nodes)
+    const shadowFilter = defs.append('filter')
+      .attr('id', 'node-shadow')
+      .attr('x', '-30%')
+      .attr('y', '-30%')
+      .attr('width', '160%')
+      .attr('height', '160%');
+
+    shadowFilter.append('feDropShadow')
+      .attr('dx', '0')
+      .attr('dy', '3')
+      .attr('stdDeviation', '4')
+      .attr('flood-color', '#3d2f22')
+      .attr('flood-opacity', '0.14');
+
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.15, 5])
@@ -124,8 +139,9 @@ export function HeatMap({
       owasp_categories: n.owasp_categories ?? [],
       cwe_categories: n.cwe_categories ?? [],
       security_findings: n.security_findings ?? [],
-      x: n.x ?? undefined,
-      y: n.y ?? undefined,
+      // Re-initialize coordinates to let D3 calculate a perfectly balanced centered layout
+      x: undefined,
+      y: undefined,
     }));
 
     const nodeIds = new Set(simNodes.map((n) => n.id));
@@ -148,19 +164,21 @@ export function HeatMap({
           .strength(0.35)
       )
       .force('charge', d3.forceManyBody().strength(-220))
+      .force('x', d3.forceX(w / 2).strength(0.18)) // Gravity to center horizontally
+      .force('y', d3.forceY(h / 2).strength(0.18)) // Gravity to center vertically, removing blank space
       .force('center', d3.forceCenter(w / 2, h / 2))
       .force('collision', d3.forceCollide().radius((d) => radius(d as SimNode, selectedId) + 6));
 
-    // Dynamic dashed thin link edges
+    // Dynamic bold link edges (Requirement: clearly visible graph edges)
     const link = g
       .append('g')
-      .attr('stroke', 'rgba(176, 122, 77, 0.15)')
+      .attr('stroke', 'rgba(140, 98, 57, 0.48)') // Richer, darker caramel-brown
       .selectAll('line')
       .data(simLinks)
       .join('line')
-      .attr('stroke-width', (d) => Math.sqrt(d.weight) * 0.15 + 0.35)
-      .attr('stroke-dasharray', '3,3')
-      .attr('opacity', 0.55);
+      .attr('stroke-width', (d) => Math.sqrt(d.weight) * 0.4 + 1.25) // Bold, visible width
+      .attr('stroke-dasharray', '5,3') // Highly visible dashing pattern
+      .attr('opacity', 0.95); // High opacity for absolute clarity
 
     // Dynamic Concentric Rings for Selected Node under node groups
     let glowCircle1: any;
@@ -207,15 +225,18 @@ export function HeatMap({
       .attr('fill', (d) => scoreColor(d.debt_score))
       .attr('stroke', (d) => {
         if (d.has_critical_security) return d.security_risk_level === 'critical' ? '#8f1d1d' : '#d85b2b';
-        return d.id === selectedId ? '#b07a4d' : 'rgba(176, 122, 77, 0.25)';
+        return d.id === selectedId ? '#8c6239' : 'rgba(107, 91, 77, 0.72)'; // Bold warm-espresso border
       })
       .attr('stroke-width', (d) => {
-        if (d.has_critical_security) return d.id === selectedId ? 4.5 : 3;
-        return d.id === selectedId ? 4 : 1.25;
+        if (d.has_critical_security) return d.id === selectedId ? 5 : 3.5;
+        return d.id === selectedId ? 4.5 : 2.25; // Double outline thickness for boldness
       })
       .attr('stroke-dasharray', (d) => (d.has_critical_security && d.security_risk_level === 'critical' ? '5,3' : null))
-      .attr('opacity', (d) => (d.id === selectedId ? 1 : 0.88))
-      .attr('filter', (d) => (d.has_critical_security ? 'url(#security-glow)' : d.id === selectedId ? 'url(#node-glow)' : null))
+      .attr('opacity', (d) => (d.id === selectedId ? 1 : 0.95)) // Maximum boldness opacity
+      .attr('filter', (d) => {
+        if (d.has_critical_security) return 'url(#security-glow)';
+        return d.id === selectedId ? 'url(#node-glow)' : 'url(#node-shadow)'; // Soft 3D drop-shadow
+      })
       .attr('class', (d) => {
         const classes = [] as string[];
         if (d.has_critical_security) classes.push('security-critical-node');
@@ -234,7 +255,7 @@ export function HeatMap({
           .duration(200)
           .attr('r', radius(d, selectedId) * 1.2)
           .attr('opacity', 1)
-          .attr('stroke-width', 2.5)
+          .attr('stroke-width', 3.5) // Bold width on hover
           .attr('filter', d.has_critical_security ? 'url(#security-glow)' : 'url(#node-glow)');
       })
       .on('mouseout', function (event, d) {
@@ -243,9 +264,9 @@ export function HeatMap({
           .transition()
           .duration(200)
           .attr('r', radius(d, selectedId))
-          .attr('opacity', isSelected ? 1 : 0.85)
-          .attr('stroke-width', d.has_critical_security ? 3 : isSelected ? 4 : 1.25)
-          .attr('filter', d.has_critical_security ? 'url(#security-glow)' : isSelected ? 'url(#node-glow)' : null);
+          .attr('opacity', isSelected ? 1 : 0.95)
+          .attr('stroke-width', d.has_critical_security ? 3.5 : isSelected ? 4.5 : 2.25) // Revert to bold stroke width
+          .attr('filter', d.has_critical_security ? 'url(#security-glow)' : isSelected ? 'url(#node-glow)' : 'url(#node-shadow)');
       });
 
     node.append('title').text((d) => {
@@ -356,10 +377,10 @@ export function HeatMap({
   return (
     <div
       ref={containerRef}
-      className="graph-container w-full h-full min-h-[480px] bg-gradient-to-tr from-[#f7f2ec]/50 to-[#fffdf9]/90 border border-[rgba(176,122,77,0.14)] shadow-inner rounded-[30px] overflow-hidden relative"
+      className="graph-container w-full h-full min-h-[480px] bg-[#efe8de] border border-[rgba(176,123,79,0.22)] shadow-inner rounded-[30px] overflow-hidden relative"
     >
       {/* Dynamic Ambient Background Glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(176,122,77,0.05),transparent_65%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(176,122,77,0.08),transparent_65%)] pointer-events-none" />
 
       {/* Floating Graph Controls Stacked Vertically Top-Right */}
       <div className="absolute top-5 right-5 flex flex-col gap-1 z-20">
