@@ -1,4 +1,4 @@
-import simhash from 'simhash';
+import { createHash } from 'crypto';
 import type { ParsedFile } from '@/types';
 
 const SHINGLE_SIZE = 3;
@@ -7,27 +7,12 @@ export function computeDuplicationScores(
   files: ParsedFile[]
 ): Map<string, number> {
   const fileHashes: { path: string; hash: number[] }[] = [];
-  
-  // Safe initialization of simhash using 'md5' algorithm
-  let hasher: (tokens: string[]) => number[];
-  try {
-    hasher = simhash('md5');
-  } catch (err) {
-    console.error('Failed to initialize simhash with md5, falling back to default:', err);
-    try {
-      hasher = simhash();
-    } catch (err2) {
-      console.error('Failed to initialize default simhash, using fallback stub:', err2);
-      hasher = () => [];
-    }
-  }
 
   for (const file of files) {
     try {
       const shingles = tokenize(file.content);
       if (shingles.length === 0) continue;
-      // Generate the simhash array of bits safely
-      const hash = hasher(shingles);
+      const hash = buildBitHash(shingles);
       fileHashes.push({ path: file.path, hash });
     } catch (err) {
       console.error(`Failed to generate simhash for file ${file.path}:`, err);
@@ -86,6 +71,21 @@ function hammingDistance(a: number[], b: number[]): number {
     }
   }
   return distance;
+}
+
+function buildBitHash(tokens: string[]): number[] {
+  const vector = new Array(64).fill(0);
+
+  for (const token of tokens) {
+    const digest = createHash('sha256').update(token).digest();
+    for (let bit = 0; bit < 64; bit++) {
+      const byte = digest[Math.floor(bit / 8)] ?? 0;
+      const mask = 1 << (bit % 8);
+      vector[bit] += byte & mask ? 1 : -1;
+    }
+  }
+
+  return vector.map((value) => (value >= 0 ? 1 : 0));
 }
 
 export function getFileDuplicationScore(

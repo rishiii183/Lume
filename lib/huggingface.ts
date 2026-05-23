@@ -124,44 +124,128 @@ export async function generateDebtExplanation(context: {
   complexity: number;
   blastRadius: number;
   codeSnippet: string;
+  securityScore?: number;
+  vulnerabilityCount?: number;
+  securityRiskLevel?: string;
+  owaspCategories?: string[];
+  cweCategories?: string[];
+  securityFindings?: Array<{ title: string; severity: string; recommendation: string; evidence: string }>;
 }): Promise<string> {
   // Truncate fields to verify and handle token limits (Requirement 16)
   const truncatedPath = (context.filePath || '').slice(0, 200);
   const truncatedSymbol = (context.symbolName || '').slice(0, 100);
   const truncatedCode = (context.codeSnippet || '').slice(0, 1000);
+  const securitySummary = [
+    `Security score: ${context.securityScore ?? 0}/100`,
+    `Vulnerabilities: ${context.vulnerabilityCount ?? 0}`,
+    `Risk level: ${context.securityRiskLevel ?? 'none'}`,
+    `OWASP: ${(context.owaspCategories ?? []).join(', ') || 'none'}`,
+    `CWE: ${(context.cweCategories ?? []).join(', ') || 'none'}`,
+  ].join('\n');
+  const securityFindings = (context.securityFindings ?? [])
+    .slice(0, 6)
+    .map((finding) => `- [${finding.severity}] ${finding.title}: ${finding.evidence}`)
+    .join('\n');
 
-  const prompt = `<s>[INST] You are a senior software architect analyzing technical debt.
+  const prompt = `<s>[INST] You are a senior security architect and technical debt expert.
 
-Analyze this code symbol and explain its technical debt in 2-3 concise sentences. Focus on maintainability risks, coupling, and refactoring priority.
+Analyze this code symbol for technical debt, security vulnerabilities, exploitability, propagation risk, and remediation steps.
+
+Return strict JSON:
+{
+  "summary": "",
+  "technicalDebt": [],
+  "securityFindings": [],
+  "criticalRisks": [],
+  "recommendedFixes": [],
+  "priorityLevel": ""
+}
 
 File: ${truncatedPath}
 Symbol: ${truncatedSymbol}
 Debt Score: ${context.debtScore}/100
 Complexity: ${context.complexity}
 Blast Radius: ${context.blastRadius} dependent symbols
+${securitySummary}
+
+Security Findings:
+${securityFindings || '- none'}
 
 Code:
 \`\`\`
 ${truncatedCode}
 \`\`\`
 
-Provide a clear, actionable explanation. [/INST]`;
+Provide only JSON. [/INST]`;
 
   console.log("[Explain] Prompt length:", prompt.length);
   console.log("[Explain] Calling HuggingFace...");
 
   try {
-    return await callHF(EXPLANATION_MODEL, prompt, { max_new_tokens: 300 });
+    const raw = await callHF(EXPLANATION_MODEL, prompt, { max_new_tokens: 380 });
+    const parsed = parseSecurityExplanation(raw);
+    if (parsed) return parsed;
+    return raw;
   } catch (err) {
     console.warn("[HuggingFace] Primary model failed due to offline state or timeout. Attempting fallback model...");
     try {
       const fallbackPrompt = `Explain technical debt for ${truncatedSymbol} in ${truncatedPath} (score ${context.debtScore}): ${truncatedCode.slice(0, 400)}`;
-      return await callHF(FALLBACK_MODEL, fallbackPrompt, { max_new_tokens: 150 });
+      const raw = await callHF(FALLBACK_MODEL, fallbackPrompt, { max_new_tokens: 150 });
+      const parsed = parseSecurityExplanation(raw);
+      return parsed ?? raw;
     } catch (fallbackErr) {
       console.warn("[HuggingFace] Fallback model also failed (network unreachable). Gracefully fallback to custom local heuristic explanation.");
-      return generateHeuristicExplanation(context);
+      return generateSecurityHeuristicExplanation(context);
     }
   }
+}
+
+function parseSecurityExplanation(raw: string): string | null {
+  const trimmed = raw.trim();
+  const jsonCandidate = trimmed.startsWith('```') ? trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '') : trimmed;
+
+  try {
+    const parsed = JSON.parse(jsonCandidate) as {
+      summary?: string;
+      technicalDebt?: string[];
+      securityFindings?: string[];
+      criticalRisks?: string[];
+      recommendedFixes?: string[];
+      priorityLevel?: string;
+    };
+    const sections = [
+      parsed.summary ? `Summary: ${parsed.summary}` : '',
+      parsed.priorityLevel ? `Priority: ${parsed.priorityLevel}` : '',
+      parsed.technicalDebt?.length ? `Technical debt: ${parsed.technicalDebt.join('; ')}` : '',
+      parsed.securityFindings?.length ? `Security findings: ${parsed.securityFindings.join('; ')}` : '',
+      parsed.criticalRisks?.length ? `Critical risks: ${parsed.criticalRisks.join('; ')}` : '',
+      parsed.recommendedFixes?.length ? `Recommended fixes: ${parsed.recommendedFixes.join('; ')}` : '',
+    ].filter(Boolean);
+
+    return sections.join('\n');
+  } catch {
+    return null;
+  }
+}
+
+function generateSecurityHeuristicExplanation(context: {
+  filePath: string;
+  symbolName: string;
+  debtScore: number;
+  complexity: number;
+  blastRadius: number;
+  securityScore?: number;
+  vulnerabilityCount?: number;
+  securityRiskLevel?: string;
+}): string {
+  const debt = generateHeuristicExplanation(context);
+  const securityLines = [
+    `Security score: ${context.securityScore ?? 0}/100`,
+    `Vulnerability count: ${context.vulnerabilityCount ?? 0}`,
+    `Risk level: ${context.securityRiskLevel ?? 'none'}`,
+  ];
+
+  return `${debt} ${securityLines.join('. ')}. Prioritize remediation in the highest blast-radius paths first.`;
 }
 
 export async function classifyAgentCode(codeSnippet: string): Promise<{

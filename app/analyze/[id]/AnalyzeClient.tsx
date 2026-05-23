@@ -10,6 +10,8 @@ import { FilterBar } from '@/components/FilterBar';
 import { FingerprintCard } from '@/components/FingerprintCard';
 import { LoadingState } from '@/components/LoadingState';
 import { ProgressBar } from '@/components/ProgressBar';
+import { SecurityCollapseBanner } from '@/components/SecurityCollapseBanner';
+import { SecurityOverview } from '@/components/SecurityOverview';
 import type {
   AnalysisRecord,
   DebtNode,
@@ -33,6 +35,12 @@ function AnalyzeContent() {
     maxScore: 100,
     nodeTypes: ['function', 'class', 'module', 'variable'],
     search: '',
+    criticalSecurityOnly: false,
+    owaspCategories: [],
+    cweCategories: [],
+    securityScoreThreshold: 0,
+    secretLeaksOnly: false,
+    injectionOnly: false,
   });
 
   const poll = useCallback(async () => {
@@ -94,8 +102,15 @@ function AnalyzeContent() {
 
   const filteredNodes = useMemo(() => {
     return nodes.filter((n) => {
+      if (n.debt_score > filter.maxScore) return false;
       if (n.debt_score < filter.minScore) return false;
+      if (n.security_score < filter.securityScoreThreshold) return false;
       if (!filter.nodeTypes.includes(n.node_type)) return false;
+      if (filter.criticalSecurityOnly && !n.has_critical_security) return false;
+      if (filter.owaspCategories.length > 0 && !n.owasp_categories.some((category) => filter.owaspCategories.includes(category))) return false;
+      if (filter.cweCategories.length > 0 && !n.cwe_categories.some((category) => filter.cweCategories.includes(category))) return false;
+      if (filter.secretLeaksOnly && !n.security_findings.some((finding) => finding.category === 'Secrets')) return false;
+      if (filter.injectionOnly && !n.security_findings.some((finding) => finding.category === 'Injection' || finding.owaspIds.includes('A03'))) return false;
       if (filter.search) {
         const q = filter.search.toLowerCase();
         if (
@@ -116,6 +131,39 @@ function AnalyzeContent() {
     );
   }, [links, filteredNodes]);
 
+  const availableOwaspCategories = useMemo(
+    () => [...new Set(nodes.flatMap((node) => node.owasp_categories ?? []))].sort(),
+    [nodes]
+  );
+
+  const availableCweCategories = useMemo(
+    () => [...new Set(nodes.flatMap((node) => node.cwe_categories ?? []))].sort(),
+    [nodes]
+  );
+
+  const securityFindings = useMemo(
+    () => nodes.flatMap((node) => node.security_findings ?? []),
+    [nodes]
+  );
+
+  const collapseBanner = useMemo(() => {
+    if (!analysis?.security_collapse) return null;
+    const affectedCoreModules = [...new Set(nodes.filter((node) => node.has_critical_security).map((node) => node.file_path))].slice(0, 8);
+    const reasons = [
+      `Critical vulnerabilities: ${analysis.critical_vulnerabilities}`,
+      `Repository security score: ${analysis.repo_security_score.toFixed(1)}/100`,
+      `Affected modules: ${affectedCoreModules.length}`,
+    ];
+    const severity: 'critical' | 'high' | 'moderate' = analysis.repo_security_score > 85 ? 'critical' : 'high';
+    return {
+      isCollapsed: true,
+      severity,
+      reasons,
+      affectedCoreModules,
+      propagationRisk: Math.min(100, Math.round(analysis.repo_security_score * 0.8 + analysis.critical_vulnerabilities * 6)),
+    };
+  }, [analysis, nodes]);
+
   const isLoading =
     !analysis ||
     (analysis.status !== 'complete' && analysis.status !== 'failed');
@@ -129,7 +177,7 @@ function AnalyzeContent() {
           {isRateLimit ? 'GitHub Quota Paused' : 'Analysis Failed'}
         </h2>
         <p className="text-slate-400 text-sm mb-6 leading-relaxed">{error}</p>
-        
+
         {isRateLimit ? (
           <div className="flex flex-col gap-3 items-center">
             <button
@@ -242,6 +290,12 @@ function AnalyzeContent() {
           </div>
         </div>
 
+        {collapseBanner && (
+          <SecurityCollapseBanner collapse={collapseBanner} criticalFindings={analysis.critical_vulnerabilities} />
+        )}
+
+        <SecurityOverview analysis={analysis} nodes={nodes} />
+
         {/* Dynamic visual graph and filters block */}
         <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
           <div className="lg:w-[70%] flex flex-col gap-6 min-h-0">
@@ -271,6 +325,8 @@ function AnalyzeContent() {
               filter={filter}
               onChange={setFilter}
               nodeCount={filteredNodes.length}
+              availableOwaspCategories={availableOwaspCategories}
+              availableCweCategories={availableCweCategories}
             />
             <div className="hidden lg:block flex-1 min-h-[200px]">
               <NodeSidebar node={selected} analysisId={analysisId} />

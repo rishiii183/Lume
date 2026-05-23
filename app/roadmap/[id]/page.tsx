@@ -58,8 +58,7 @@ export default function RoadmapPage() {
           </div>
           {analysis && (
             <p className="text-slate-500 text-sm mt-1.5 font-bold">
-              {analysis.repo_owner}/{analysis.repo_name} — prioritized by debt score
-              and blast radius
+              {analysis.repo_owner}/{analysis.repo_name} — prioritized by debt and security risk
             </p>
           )}
         </div>
@@ -76,6 +75,8 @@ export default function RoadmapPage() {
               <Stat label="Total Nodes" value={analysis.total_nodes} />
               <Stat label="Avg Debt Score" value={analysis.avg_debt_score} />
               <Stat label="Files Scanned" value={analysis.total_files} />
+              <Stat label="Repo Security Score" value={analysis.repo_security_score} />
+              <Stat label="Critical Vulns" value={analysis.critical_vulnerabilities} />
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 -- DebtRadar Supabase schema
 -- Run in Supabase SQL editor
 
-create extension if not exists "uuid-ossp";
+create extension if not exists "pgcrypto";
 
 create table if not exists public.analyses (
   id uuid primary key default gen_random_uuid(),
@@ -55,6 +55,22 @@ create table if not exists public.debt_nodes (
   y numeric(12,4),
   created_at timestamptz not null default now()
 );
+
+alter table public.analyses
+  add column if not exists security_summary jsonb,
+  add column if not exists security_collapse boolean not null default false,
+  add column if not exists critical_vulnerabilities integer not null default 0,
+  add column if not exists repo_security_score numeric(10,2) not null default 0;
+
+alter table public.debt_nodes
+  add column if not exists security_score numeric(10,2) not null default 0,
+  add column if not exists security_weighted_score numeric(10,2) not null default 0,
+  add column if not exists has_critical_security boolean not null default false,
+  add column if not exists vulnerability_count integer not null default 0,
+  add column if not exists security_risk_level text,
+  add column if not exists owasp_categories jsonb not null default '[]'::jsonb,
+  add column if not exists cwe_categories jsonb not null default '[]'::jsonb,
+  add column if not exists security_findings jsonb not null default '[]'::jsonb;
 
 create index if not exists idx_analyses_user on public.analyses(user_id);
 create index if not exists idx_analyses_status on public.analyses(status);

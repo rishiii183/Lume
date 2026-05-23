@@ -91,6 +91,12 @@ export async function POST(request: NextRequest) {
       complexity: node.complexity || 0,
       blastRadius: node.blast_radius || 0,
       codeSnippet,
+      securityScore: node.security_score ?? 0,
+      vulnerabilityCount: node.vulnerability_count ?? 0,
+      securityRiskLevel: node.security_risk_level ?? 'none',
+      owaspCategories: node.owasp_categories ?? [],
+      cweCategories: node.cwe_categories ?? [],
+      securityFindings: node.security_findings ?? [],
     });
 
     // Save back to DB

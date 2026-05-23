@@ -17,9 +17,17 @@ interface HeatMapProps {
 interface SimNode extends d3.SimulationNodeDatum {
   id: string;
   debt_score: number;
+  security_score: number;
+  security_weighted_score: number;
+  has_critical_security: boolean;
+  vulnerability_count: number;
+  security_risk_level: DebtNode['security_risk_level'];
   symbol_name: string;
   file_path: string;
   blast_radius: number;
+  owasp_categories: string[];
+  cwe_categories: string[];
+  security_findings: DebtNode['security_findings'];
   x?: number;
   y?: number;
   fx?: number | null;
@@ -66,14 +74,29 @@ export function HeatMap({
       .attr('y', '-100%')
       .attr('width', '300%')
       .attr('height', '300%');
-    
+
     glowFilter.append('feGaussianBlur')
       .attr('stdDeviation', '6')
       .attr('result', 'blur');
-      
+
     const feMerge = glowFilter.append('feMerge');
     feMerge.append('feMergeNode').attr('in', 'blur');
     feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+    const securityGlow = defs.append('filter')
+      .attr('id', 'security-glow')
+      .attr('x', '-120%')
+      .attr('y', '-120%')
+      .attr('width', '340%')
+      .attr('height', '340%');
+
+    securityGlow.append('feGaussianBlur')
+      .attr('stdDeviation', '4')
+      .attr('result', 'blur');
+
+    const securityMerge = securityGlow.append('feMerge');
+    securityMerge.append('feMergeNode').attr('in', 'blur');
+    securityMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
@@ -88,9 +111,17 @@ export function HeatMap({
     const simNodes: SimNode[] = nodes.map((n) => ({
       id: n.id,
       debt_score: n.debt_score,
+      security_score: n.security_score ?? 0,
+      security_weighted_score: n.security_weighted_score ?? 0,
+      has_critical_security: n.has_critical_security ?? false,
+      vulnerability_count: n.vulnerability_count ?? 0,
+      security_risk_level: n.security_risk_level ?? 'none',
       symbol_name: n.symbol_name,
       file_path: n.file_path,
       blast_radius: n.blast_radius,
+      owasp_categories: n.owasp_categories ?? [],
+      cwe_categories: n.cwe_categories ?? [],
+      security_findings: n.security_findings ?? [],
       x: n.x ?? undefined,
       y: n.y ?? undefined,
     }));
@@ -172,37 +203,92 @@ export function HeatMap({
       .join('circle')
       .attr('r', (d) => radius(d, selectedId))
       .attr('fill', (d) => scoreColor(d.debt_score))
-      .attr('stroke', (d) => (d.id === selectedId ? '#b07a4d' : 'rgba(176, 122, 77, 0.25)'))
-      .attr('stroke-width', (d) => (d.id === selectedId ? 4 : 1.25))
-      .attr('opacity', (d) => (d.id === selectedId ? 1 : 0.85))
-      .attr('filter', (d) => (d.id === selectedId ? 'url(#node-glow)' : null))
+      .attr('stroke', (d) => {
+        if (d.has_critical_security) return d.security_risk_level === 'critical' ? '#8f1d1d' : '#d85b2b';
+        return d.id === selectedId ? '#b07a4d' : 'rgba(176, 122, 77, 0.25)';
+      })
+      .attr('stroke-width', (d) => {
+        if (d.has_critical_security) return d.id === selectedId ? 4.5 : 3;
+        return d.id === selectedId ? 4 : 1.25;
+      })
+      .attr('stroke-dasharray', (d) => (d.has_critical_security && d.security_risk_level === 'critical' ? '5,3' : null))
+      .attr('opacity', (d) => (d.id === selectedId ? 1 : 0.88))
+      .attr('filter', (d) => (d.has_critical_security ? 'url(#security-glow)' : d.id === selectedId ? 'url(#node-glow)' : null))
+      .attr('class', (d) => {
+        const classes = [] as string[];
+        if (d.has_critical_security) classes.push('security-critical-node');
+        if (d.has_critical_security && d.security_risk_level === 'critical') classes.push('security-collapsed-node');
+        return classes.join(' ');
+      })
       .style('cursor', 'pointer')
       .on('click', (event, d) => {
         event.stopPropagation();
         const full = nodes.find((n) => n.id === d.id) ?? null;
         onSelect(full);
       })
-      .on('mouseover', function(event, d) {
+      .on('mouseover', function (event, d) {
         d3.select(this)
           .transition()
           .duration(200)
           .attr('r', radius(d, selectedId) * 1.2)
           .attr('opacity', 1)
           .attr('stroke-width', 2.5)
-          .attr('filter', 'url(#node-glow)');
+          .attr('filter', d.has_critical_security ? 'url(#security-glow)' : 'url(#node-glow)');
       })
-      .on('mouseout', function(event, d) {
+      .on('mouseout', function (event, d) {
         const isSelected = d.id === selectedId;
         d3.select(this)
           .transition()
           .duration(200)
           .attr('r', radius(d, selectedId))
           .attr('opacity', isSelected ? 1 : 0.85)
-          .attr('stroke-width', isSelected ? 4 : 1.25)
-          .attr('filter', isSelected ? 'url(#node-glow)' : null);
+          .attr('stroke-width', d.has_critical_security ? 3 : isSelected ? 4 : 1.25)
+          .attr('filter', d.has_critical_security ? 'url(#security-glow)' : isSelected ? 'url(#node-glow)' : null);
       });
 
+    node.append('title').text((d) => {
+      const topOwasp = d.owasp_categories?.[0] ?? 'none';
+      const debtScore = Number.isFinite(d.debt_score) ? d.debt_score : 0;
+      const securityScore = Number.isFinite(d.security_score) ? d.security_score : 0;
+      const vulnerabilityCount = Number.isFinite(d.vulnerability_count) ? d.vulnerability_count : 0;
+      const riskLevel = d.security_risk_level ?? 'none';
+      return [
+        d.symbol_name,
+        `Debt score: ${debtScore.toFixed(1)}`,
+        `Security score: ${securityScore.toFixed(1)}`,
+        `Critical vulnerabilities: ${vulnerabilityCount}`,
+        `Top OWASP: ${topOwasp}`,
+        `Risk level: ${riskLevel}`,
+      ].join('\n');
+    });
+
     node.call(dragBehavior);
+
+    const criticalRing = g
+      .append('g')
+      .selectAll('circle')
+      .data(simNodes.filter((d) => d.has_critical_security))
+      .join('circle')
+      .attr('fill', 'none')
+      .attr('stroke', (d) => (d.security_risk_level === 'critical' ? '#8f1d1d' : '#d85b2b'))
+      .attr('stroke-width', 2.5)
+      .attr('opacity', 0.75)
+      .attr('stroke-dasharray', (d) => (d.security_risk_level === 'critical' ? '6,4' : '3,3'))
+      .attr('class', 'security-warning-ring');
+
+    const criticalMarker = g
+      .append('g')
+      .selectAll('text')
+      .data(simNodes.filter((d) => d.has_critical_security))
+      .join('text')
+      .text((d) => (d.security_risk_level === 'critical' ? '⚠' : '!'))
+      .attr('text-anchor', 'middle')
+      .attr('dy', 4)
+      .attr('font-size', 12)
+      .attr('font-weight', 900)
+      .attr('fill', '#8f1d1d')
+      .attr('pointer-events', 'none')
+      .attr('class', 'security-critical-marker');
 
     const label = g
       .append('g')
@@ -226,6 +312,15 @@ export function HeatMap({
 
       node.attr('cx', (d) => d.x ?? 0).attr('cy', (d) => d.y ?? 0);
       label.attr('x', (d) => d.x ?? 0).attr('y', (d) => d.y ?? 0);
+
+      criticalRing
+        .attr('cx', (d) => d.x ?? 0)
+        .attr('cy', (d) => d.y ?? 0)
+        .attr('r', (d) => radius(d, selectedId) + 7);
+
+      criticalMarker
+        .attr('x', (d) => d.x ?? 0)
+        .attr('y', (d) => (d.y ?? 0) - radius(d, selectedId) - 2);
 
       if (selectedId && glowCircle1 && glowCircle2) {
         const sel = simNodes.find(n => n.id === selectedId);
@@ -317,14 +412,28 @@ export function HeatMap({
 }
 
 function radius(d: SimNode, selectedId: string | null): number {
-  const base = Math.max(6, Math.min(24, 6 + d.blast_radius * 0.35 + d.debt_score * 0.08));
+  const base = Math.max(6, Math.min(24, 6 + d.blast_radius * 0.35 + d.debt_score * 0.08 + (d.has_critical_security ? 1.5 : 0)));
   if (d.id === selectedId) return base * 1.35; // Selected node is 35% larger
   return base;
 }
 
 function getLinkNode(endpoint: SimNode | string): SimNode {
   if (typeof endpoint === 'string') {
-    return { id: endpoint, debt_score: 0, symbol_name: '', file_path: '', blast_radius: 0 };
+    return {
+      id: endpoint,
+      debt_score: 0,
+      security_score: 0,
+      security_weighted_score: 0,
+      has_critical_security: false,
+      vulnerability_count: 0,
+      security_risk_level: 'none',
+      symbol_name: '',
+      file_path: '',
+      blast_radius: 0,
+      owasp_categories: [],
+      cwe_categories: [],
+      security_findings: [],
+    } as SimNode;
   }
   return endpoint;
 }

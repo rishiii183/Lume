@@ -45,6 +45,10 @@ export async function updateAnalysisProgress(
     avg_debt_score: number;
     fingerprint_label: string;
     fingerprint_confidence: number;
+    security_summary: AnalysisRecord['security_summary'];
+    security_collapse: boolean;
+    critical_vulnerabilities: number;
+    repo_security_score: number;
   }>
 ) {
   try {
@@ -54,7 +58,29 @@ export async function updateAnalysisProgress(
       .update(updates)
       .eq('id', analysisId);
     if (error) {
-      console.error(`[Supabase Error] Failed to update progress for ${analysisId}: ${error.message}`);
+      const errorMessage = error.message ?? '';
+      const isSchemaCacheError = /schema cache|Could not find the '.+' column/i.test(errorMessage);
+      if (!isSchemaCacheError) {
+        console.error(`[Supabase Error] Failed to update progress for ${analysisId}: ${errorMessage}`);
+        return;
+      }
+
+      const fallbackUpdates = {
+        ...updates,
+      } as Record<string, unknown>;
+      delete fallbackUpdates.security_summary;
+      delete fallbackUpdates.security_collapse;
+      delete fallbackUpdates.critical_vulnerabilities;
+      delete fallbackUpdates.repo_security_score;
+
+      const fallback = await supabase
+        .from('analyses')
+        .update(fallbackUpdates)
+        .eq('id', analysisId);
+
+      if (fallback.error) {
+        console.error(`[Supabase Error] Failed to update progress for ${analysisId}: ${fallback.error.message}`);
+      }
     }
   } catch (err) {
     console.error(`[Supabase Error] Exception thrown during update progress for ${analysisId}:`, err);
@@ -91,7 +117,19 @@ export async function insertDebtNodes(
   for (let i = 0; i < nodes.length; i += batchSize) {
     const batch = nodes.slice(i, i + batchSize);
     const { error } = await supabase.from('debt_nodes').insert(batch);
-    if (error) throw new Error(`Failed to insert nodes: ${error.message}`);
+    if (!error) continue;
+
+    const errorMessage = error.message ?? '';
+    const isSchemaCacheError = /schema cache|Could not find the '.+' column/i.test(errorMessage);
+    if (!isSchemaCacheError) {
+      throw new Error(`Failed to insert nodes: ${errorMessage}`);
+    }
+
+    const fallbackBatch = batch.map(({ security_score, security_weighted_score, has_critical_security, vulnerability_count, security_risk_level, owasp_categories, cwe_categories, security_findings, ...rest }) => rest as Omit<DebtNode, 'id' | 'security_score' | 'security_weighted_score' | 'has_critical_security' | 'vulnerability_count' | 'security_risk_level' | 'owasp_categories' | 'cwe_categories' | 'security_findings'>);
+    const fallbackInsert = await supabase.from('debt_nodes').insert(fallbackBatch);
+    if (fallbackInsert.error) {
+      throw new Error(`Failed to insert nodes: ${fallbackInsert.error.message}`);
+    }
   }
 }
 

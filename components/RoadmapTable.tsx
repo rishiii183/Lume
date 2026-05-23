@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowUpRight, Download } from 'lucide-react';
 import type { RoadmapItem } from '@/types';
 import { formatScore, scoreColor } from '@/lib/utils';
+import { SecurityBadge } from '@/components/SecurityBadge';
 
 interface RoadmapTableProps {
   items: RoadmapItem[];
@@ -32,8 +33,11 @@ export function RoadmapTable({ items, analysisId }: RoadmapTableProps) {
               <th className="px-5 py-3.5 font-bold">Symbol</th>
               <th className="px-5 py-3.5 font-bold">File</th>
               <th className="px-5 py-3.5 font-bold">Debt</th>
+              <th className="px-5 py-3.5 font-bold">Security</th>
+              <th className="px-5 py-3.5 font-bold">Critical Vulns</th>
+              <th className="px-5 py-3.5 font-bold">OWASP</th>
               <th className="px-5 py-3.5 font-bold">Blast</th>
-              <th className="px-5 py-3.5 font-bold">Priority</th>
+              <th className="px-5 py-3.5 font-bold">Security Priority</th>
               <th className="px-5 py-3.5 font-bold"></th>
             </tr>
           </thead>
@@ -41,7 +45,7 @@ export function RoadmapTable({ items, analysisId }: RoadmapTableProps) {
             {items.map((item) => (
               <tr
                 key={item.nodeId}
-                className="border-b border-[rgba(176,123,79,0.06)] hover:bg-[#f5efe7]/40 transition-colors"
+                className={`border-b border-[rgba(176,123,79,0.06)] hover:bg-[#f5efe7]/40 transition-colors ${item.criticalSecurity ? 'bg-[#fff4f4]/70' : ''}`}
               >
                 <td className="px-5 py-3.5 text-slate-400 font-bold">{item.rank}</td>
                 <td className="px-5 py-3.5 font-mono text-slate-800 font-bold">{item.symbolName}</td>
@@ -51,9 +55,16 @@ export function RoadmapTable({ items, analysisId }: RoadmapTableProps) {
                 <td className="px-5 py-3.5 font-extrabold font-mono" style={{ color: scoreColor(item.debtScore) }}>
                   {formatScore(item.debtScore)}
                 </td>
+                <td className="px-5 py-3.5 text-slate-600 font-bold font-mono">
+                  <SecurityBadge severity={item.criticalSecurity ? 'critical' : item.securityScore >= 75 ? 'high' : item.securityScore >= 50 ? 'medium' : 'low'} label={formatScore(item.securityScore)} />
+                </td>
+                <td className="px-5 py-3.5 text-slate-600 font-bold font-mono">{item.vulnerabilityCount}</td>
+                <td className="px-5 py-3.5 text-slate-600 font-bold text-xs max-w-[220px] truncate">
+                  {item.owaspCategories.join(', ') || '—'}
+                </td>
                 <td className="px-5 py-3.5 text-slate-600 font-bold font-mono">{item.blastRadius}</td>
-                <td className="px-5 py-3.5 text-[#e0b04b] font-extrabold font-mono">
-                  {formatScore(item.priority)}
+                <td className="px-5 py-3.5 text-[#8f1d1d] font-extrabold font-mono">
+                  {formatScore(item.securityPriority)}
                 </td>
                 <td className="px-5 py-3.5">
                   <Link
