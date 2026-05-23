@@ -31,7 +31,7 @@ export function URLInput({ onSubmit, loading }: URLInputProps) {
         <button
           type="submit"
           disabled={loading || !url.trim()}
-          className="flex items-center gap-2 bg-gradient-to-r from-[#b07b4f] to-[#8c6239] hover:from-[#8c6239] hover:to-[#5f5348] text-white px-6 py-3.5 rounded-xl font-bold transition-all shadow-[0_4px_12px_rgba(176,123,79,0.15)] hover:shadow-[0_6px_16px_rgba(176,123,79,0.25)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 bg-gradient-to-r from-[#b07b4f] to-[#8c6239] hover:opacity-90 text-white px-6 py-3.5 rounded-xl font-bold transition-all shadow-[0_4px_12px_rgba(176,123,79,0.15)] hover:shadow-[0_6px_16px_rgba(176,123,79,0.25)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />

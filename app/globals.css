@@ -126,6 +126,7 @@ body {
 }
 
 @keyframes security-pulse {
+
   0%,
   100% {
     opacity: 0.86;
@@ -139,6 +140,7 @@ body {
 }
 
 @keyframes security-collapse {
+
   0%,
   100% {
     stroke-opacity: 0.95;
@@ -150,6 +152,7 @@ body {
 }
 
 @keyframes security-ring {
+
   0%,
   100% {
     opacity: 0.7;
@@ -161,6 +164,7 @@ body {
 }
 
 @keyframes security-marker {
+
   0%,
   100% {
     opacity: 0.65;
@@ -171,4 +175,36 @@ body {
     opacity: 1;
     transform: translateY(-2px);
   }
+}
+
+@keyframes sonar {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.sonar-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(176, 122, 77, 0.4);
+  animation: sonar 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.sonar-ring-1 {
+  animation-delay: 0s;
+}
+.sonar-ring-2 {
+  animation-delay: 0.8s;
+}
+.sonar-ring-3 {
+  animation-delay: 1.6s;
 }

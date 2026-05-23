@@ -72,7 +72,7 @@ export default function HomePage() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 fade-in-up">
       <section className="text-center mb-16">
-        <div className="inline-flex items-center gap-2 bg-[#efe8de] border border-[rgba(176,123,79,0.15)] rounded-full px-4.5 py-1.5 text-sm text-[#b07b4f] font-semibold mb-6 shadow-sm">
+        <div className="inline-flex items-center gap-2 bg-[#efe8de] border border-[rgba(176,123,79,0.15)] rounded-full px-5 py-1.5 text-sm text-[#b07b4f] font-semibold mb-6 shadow-sm">
           <Radar className="w-4 h-4" />
           AI Software Trust Intelligence Platform
         </div>

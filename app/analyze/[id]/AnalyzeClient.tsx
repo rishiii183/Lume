@@ -339,7 +339,7 @@ function AnalyzeContent() {
           <div className="flex items-center gap-3">
             <Link
               href={`/roadmap/${analysisId}`}
-              className="flex items-center gap-2 bg-[#f5eee6]/70 hover:bg-[#eadecf] border border-[rgba(176,122,77,0.25)] px-4.5 py-2.5 rounded-xl text-sm text-[#9a6a43] font-bold shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0"
+              className="flex items-center gap-2 bg-[#f5eee6]/70 hover:bg-[#eadecf] border border-[rgba(176,122,77,0.25)] px-5 py-2.5 rounded-xl text-sm text-[#9a6a43] font-bold shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0"
             >
               <Map className="w-4 h-4" />
               Roadmap
@@ -347,7 +347,7 @@ function AnalyzeContent() {
             <a
               href={`/api/export/${analysisId}`}
               download
-              className="flex items-center gap-2 bg-[#f5eee6]/70 hover:bg-[#eadecf] border border-[rgba(176,122,77,0.25)] px-4.5 py-2.5 rounded-xl text-sm text-[#9a6a43] font-bold shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0"
+              className="flex items-center gap-2 bg-[#f5eee6]/70 hover:bg-[#eadecf] border border-[rgba(176,122,77,0.25)] px-5 py-2.5 rounded-xl text-sm text-[#9a6a43] font-bold shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0"
             >
               <Download className="w-4 h-4" />
               CSV
