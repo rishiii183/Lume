@@ -190,11 +190,10 @@ function AnalyzeContent() {
   const ignoreConsequences = analysis?.ignoreConsequences ?? [];
   const businessTranslations = useMemo(() => nodes.slice(0, 5).map((node) => buildBusinessImpactFromNode(node)), [nodes]);
 
-  const autofixEnabledFinding = selected?.security_findings?.[0] ?? null;
-
   const handleGenerateAutofix = useCallback(async () => {
-    if (!selected || autofixLoading || !autofixEnabledFinding) return;
+    if (!selected || autofixLoading) return;
     setAutofixLoading(true);
+    setError(null);
     try {
       const res = await fetch('/api/autofix', {
         method: 'POST',
@@ -209,7 +208,7 @@ function AnalyzeContent() {
     } finally {
       setAutofixLoading(false);
     }
-  }, [analysisId, autofixEnabledFinding, autofixLoading, selected]);
+  }, [analysisId, autofixLoading, selected]);
 
   const collapseBanner = useMemo(() => {
     if (!analysis?.security_collapse) return null;
@@ -236,12 +235,12 @@ function AnalyzeContent() {
   if (error) {
     const isRateLimit = error.toLowerCase().includes('rate limit') || error.toLowerCase().includes('quota');
     return (
-      <div className="max-w-lg mx-auto px-4 py-24 text-center glass-panel rounded-xl border border-white/5 p-8 shadow-2xl">
+      <div className="max-w-lg mx-auto px-4 py-24 text-center glass-panel rounded-[24px] border border-[rgba(176,122,77,0.12)] p-8 shadow-sm bg-[#f5efe7]/45">
         <AlertCircle className={`w-12 h-12 ${isRateLimit ? 'text-amber-500' : 'text-accent-rose'} mx-auto mb-4 animate-pulse`} />
-        <h2 className="text-xl font-semibold mb-2 text-slate-100">
+        <h2 className="text-xl font-extrabold mb-2 text-[#2b2622]">
           {isRateLimit ? 'GitHub Quota Paused' : 'Analysis Failed'}
         </h2>
-        <p className="text-slate-400 text-sm mb-6 leading-relaxed">{error}</p>
+        <p className="text-[#8f8175] text-sm mb-6 leading-relaxed font-medium">{error}</p>
 
         {isRateLimit ? (
           <div className="flex flex-col gap-3 items-center">
@@ -252,14 +251,14 @@ function AnalyzeContent() {
                 // Perform a reload or dynamic fetch retry
                 window.location.reload();
               }}
-              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-900 rounded-lg text-sm font-semibold transition-all hover:scale-105 active:scale-95"
+              className="px-6 py-2.5 bg-[#8c6239] hover:bg-[#6b4b2a] text-[#fffdf9] rounded-2xl text-sm font-bold transition-all active:scale-[0.98]"
             >
               Check Quota & Resume Job
             </button>
             <button
               type="button"
               onClick={() => router.push('/')}
-              className="text-slate-500 hover:text-slate-300 text-xs transition-colors mt-2"
+              className="text-[#8f8175] hover:text-[#2b2622] text-xs transition-colors mt-2 font-bold"
             >
               Analyze another repository
             </button>
@@ -268,7 +267,7 @@ function AnalyzeContent() {
           <button
             type="button"
             onClick={() => router.push('/')}
-            className="text-accent-cyan hover:underline text-sm font-medium"
+            className="text-accent-cyan hover:underline text-sm font-bold"
           >
             Try another repo
           </button>
@@ -300,7 +299,7 @@ function AnalyzeContent() {
   return (
     <div className="max-w-[1600px] mx-auto px-6 py-6 flex gap-6 min-h-[calc(100vh-8rem)] fade-in-up">
       {/* Left Floating Vertical Sidebar */}
-      <aside className="hidden md:flex w-20 bg-white/60 backdrop-blur border border-[rgba(176,122,77,0.14)] rounded-[32px] py-8 flex-col items-center gap-8 shadow-sm shrink-0 sticky top-24 h-[calc(100vh-10rem)]">
+      <aside className="hidden md:flex w-20 bg-[#f5efe7]/65 backdrop-blur border border-[rgba(176,122,77,0.14)] rounded-[32px] py-8 flex-col items-center gap-8 shadow-sm shrink-0 sticky top-24 h-[calc(100vh-10rem)]">
         {/* Centered Icons with Hover Animations */}
         <div className="bg-[#efe8de] text-[#9a6a43] p-3.5 rounded-[20px] shadow-inner cursor-pointer hover:scale-105 active:scale-95 transition-all">
           <Radar className="w-5 h-5" />
@@ -316,9 +315,11 @@ function AnalyzeContent() {
       {/* Main content grid area */}
       <div className="flex-1 flex flex-col gap-6 min-w-0">
         {/* Repository Header Section */}
-        <div className="glass-panel rounded-[24px] p-6 flex flex-wrap items-center justify-between gap-4 border border-[rgba(176,122,77,0.14)] bg-white/40 shadow-sm">
+        <div className="glass-panel rounded-[24px] p-6 flex flex-wrap items-center justify-between gap-4 border border-[rgba(176,122,77,0.14)] bg-[#f5efe7]/45 shadow-sm">
           <div className="flex items-center gap-3">
-            <Github className="w-6 h-6 text-[#9a6a43] shrink-0" />
+            <div className="w-10 h-10 rounded-full bg-[#181717] flex items-center justify-center shadow-md shrink-0 border border-slate-800 hover:scale-105 active:scale-95 transition-all">
+              <Github className="w-5.5 h-5.5 text-white" />
+            </div>
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="font-extrabold text-2xl text-slate-900 tracking-tight leading-tight">
@@ -339,18 +340,18 @@ function AnalyzeContent() {
           <div className="flex items-center gap-3">
             <Link
               href={`/roadmap/${analysisId}`}
-              className="flex items-center gap-2 bg-[#f5eee6]/70 hover:bg-[#eadecf] border border-[rgba(176,122,77,0.25)] px-5 py-2.5 rounded-xl text-sm text-[#9a6a43] font-bold shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0"
+              className="group flex items-center gap-2.5 bg-[#efe8de]/80 hover:bg-[#e2d7c7]/95 border border-[rgba(176,122,77,0.18)] hover:border-[rgba(176,122,77,0.32)] px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider text-[#6b5b4d] hover:text-[#2b2622] shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
             >
-              <Map className="w-4 h-4" />
-              Roadmap
+              <Map className="w-4 h-4 text-[#9a6a43] group-hover:scale-110 group-hover:rotate-6 transition-all duration-300" />
+              <span>Roadmap</span>
             </Link>
             <a
               href={`/api/export/${analysisId}`}
               download
-              className="flex items-center gap-2 bg-[#f5eee6]/70 hover:bg-[#eadecf] border border-[rgba(176,122,77,0.25)] px-5 py-2.5 rounded-xl text-sm text-[#9a6a43] font-bold shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0"
+              className="group flex items-center gap-2.5 bg-[#efe8de]/80 hover:bg-[#e2d7c7]/95 border border-[rgba(176,122,77,0.18)] hover:border-[rgba(176,122,77,0.32)] px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider text-[#6b5b4d] hover:text-[#2b2622] shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
             >
-              <Download className="w-4 h-4" />
-              CSV
+              <Download className="w-4 h-4 text-[#9a6a43] group-hover:translate-y-0.5 transition-transform duration-300" />
+              <span>CSV</span>
             </a>
           </div>
         </div>
@@ -392,25 +393,25 @@ function AnalyzeContent() {
         <div className="grid xl:grid-cols-[1.2fr_0.8fr] gap-6">
           <div className="space-y-6">
             {selected && (
-              <div className="glass-panel rounded-[24px] p-6 border border-white/10 space-y-4">
+              <div className="bg-[#f5efe7]/50 backdrop-blur-md rounded-3xl p-6 border border-[rgba(176,122,77,0.12)] space-y-4 shadow-sm">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-slate-100">Selected node risk</h3>
-                    <p className="text-sm text-slate-400">Combined debt, security, and exploitability view.</p>
+                    <h3 className="text-lg font-extrabold text-[#2b2622] tracking-tight">Selected node risk</h3>
+                    <p className="text-sm text-[#8f8175] font-medium">Combined debt, security, and exploitability view.</p>
                   </div>
                   <ExploitabilityBadge score={selected.exploitability_score} publicExposure={selected.public_exposure} />
                 </div>
-                <div className="grid gap-3 md:grid-cols-4 text-sm text-slate-300">
-                  <div className="rounded-2xl bg-white/5 p-3">Collapse risk <span className="font-semibold text-slate-100">{Math.round(selected.collapse_risk)}</span></div>
-                  <div className="rounded-2xl bg-white/5 p-3">Attack surface <span className="font-semibold text-slate-100">{Math.round(selected.attack_surface_score)}</span></div>
-                  <div className="rounded-2xl bg-white/5 p-3">Propagation <span className="font-semibold text-slate-100">{Math.round(selected.propagation_risk)}</span></div>
-                  <div className="rounded-2xl bg-white/5 p-3">Autofix <span className="font-semibold text-slate-100">{selected.autofix_available ? 'available' : 'pending'}</span></div>
+                <div className="grid gap-3 md:grid-cols-4 text-sm text-[#6b5b4d] font-bold">
+                  <div className="rounded-2xl bg-[#efe8de]/70 border border-[rgba(176,122,77,0.06)] p-3">Collapse risk <span className="font-extrabold text-[#9a6a43]">{Math.round(selected.collapse_risk)}</span></div>
+                  <div className="rounded-2xl bg-[#efe8de]/70 border border-[rgba(176,122,77,0.06)] p-3">Attack surface <span className="font-extrabold text-[#9a6a43]">{Math.round(selected.attack_surface_score)}</span></div>
+                  <div className="rounded-2xl bg-[#efe8de]/70 border border-[rgba(176,122,77,0.06)] p-3">Propagation <span className="font-extrabold text-[#9a6a43]">{Math.round(selected.propagation_risk)}</span></div>
+                  <div className="rounded-2xl bg-[#efe8de]/70 border border-[rgba(176,122,77,0.06)] p-3">Autofix <span className="font-extrabold text-[#9a6a43]">{selected.autofix_available ? 'available' : 'pending'}</span></div>
                 </div>
                 <button
                   type="button"
                   onClick={handleGenerateAutofix}
-                  disabled={autofixLoading || !autofixEnabledFinding}
-                  className="rounded-xl bg-cyan-500/20 px-4 py-2 text-sm font-semibold text-cyan-100 border border-cyan-400/30 disabled:opacity-50"
+                  disabled={autofixLoading}
+                  className="rounded-2xl bg-[#8c6239] hover:bg-[#6b4b2a] text-[#fffdf9] px-5 py-3 text-sm font-bold shadow-sm transition-all active:scale-[0.98] disabled:opacity-50"
                 >
                   {autofixLoading ? 'Generating autofix...' : 'Generate autofix'}
                 </button>

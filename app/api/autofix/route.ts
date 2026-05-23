@@ -27,10 +27,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Node not found' }, { status: 404 });
     }
 
-    const securityFinding = node.security_findings?.[0];
-    if (!securityFinding) {
-      return NextResponse.json({ error: 'No security finding available for autofix' }, { status: 400 });
-    }
+    const securityFinding: import('@/types').SecurityFinding = node.security_findings?.[0] ?? {
+      id: `synthetic-${nodeId}`,
+      ruleId: 'debt-autofix',
+      title: `Potential issue in ${node.symbol_name}`,
+      description: `Automated analysis detected potential issues in ${node.symbol_name} (debt score: ${node.debt_score}, blast radius: ${node.blast_radius}).`,
+      severity: node.has_critical_security ? 'critical' : node.debt_score >= 50 ? 'high' : 'medium',
+      filePath: node.file_path,
+      lineStart: node.line_start ?? 1,
+      lineEnd: node.line_end ?? 100,
+      evidence: `Debt score ${node.debt_score}, blast radius ${node.blast_radius}`,
+      recommendation: `Review and harden ${node.symbol_name} to reduce technical debt and improve reliability.`,
+      occurrenceCount: 1,
+      exploitability: node.exploitability_score ?? 0,
+      owaspIds: node.owasp_categories ?? [],
+      cweIds: node.cwe_categories ?? [],
+      category: 'code-quality',
+    };
 
     let codeSnippet = body.codeSnippet as string | undefined;
     if (!codeSnippet) {

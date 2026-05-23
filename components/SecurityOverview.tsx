@@ -20,7 +20,7 @@ export function SecurityOverview({ analysis, nodes }: SecurityOverviewProps) {
     .slice(0, 5);
 
   return (
-    <div className="space-y-6">
+    <div className="glass-panel rounded-[32px] p-6 border border-[rgba(176,123,79,0.24)] bg-[#f5efe7]/35 shadow-sm space-y-6">
       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
         <Metric label="Repo Security Score" value={analysis?.repo_security_score ?? securitySummary?.score ?? 0} accent />
         <Metric label="Critical Vulns" value={analysis?.critical_vulnerabilities ?? securitySummary?.critical ?? 0} danger />
@@ -41,7 +41,7 @@ export function SecurityOverview({ analysis, nodes }: SecurityOverviewProps) {
 
       <div className="grid xl:grid-cols-[1.2fr_0.8fr] gap-6">
         <OWASPChart summary={securitySummary} findings={findings} />
-        <div className="glass-panel rounded-3xl p-5 border border-[rgba(176,123,79,0.12)] shadow-md bg-white/40 space-y-4">
+        <div className="glass-panel rounded-3xl p-5 border border-[rgba(176,123,79,0.24)] shadow-md bg-[#f5efe7]/45 space-y-4">
           <div>
             <h3 className="font-extrabold text-slate-800">Top Vulnerable Modules</h3>
             <p className="text-xs text-slate-500 font-semibold mt-1">Ranked by security score and vulnerability concentration</p>
@@ -49,7 +49,7 @@ export function SecurityOverview({ analysis, nodes }: SecurityOverviewProps) {
           <div className="space-y-3">
             {topModules.length === 0 && <p className="text-sm text-slate-500 font-medium">No vulnerable modules found.</p>}
             {topModules.map((node) => (
-              <div key={node.id} className="rounded-2xl border border-[rgba(176,123,79,0.08)] bg-[#f5efe7]/30 p-4 space-y-2">
+              <div key={node.id} className="rounded-2xl border border-[rgba(176,123,79,0.14)] bg-[#efe8de]/40 p-4 space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-bold text-slate-800 truncate">{node.symbol_name}</p>
@@ -57,10 +57,10 @@ export function SecurityOverview({ analysis, nodes }: SecurityOverviewProps) {
                   </div>
                   <SecurityBadge severity={node.security_risk_level} />
                 </div>
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-500 flex-wrap">
-                  <span className="px-2 py-1 rounded-full bg-white border border-slate-200">Security {node.security_score}</span>
-                  <span className="px-2 py-1 rounded-full bg-white border border-slate-200">Critical {node.vulnerability_count}</span>
-                  <span className="px-2 py-1 rounded-full bg-white border border-slate-200">Blast {node.blast_radius}</span>
+                <div className="flex items-center gap-2 text-xs font-bold flex-wrap">
+                  <span className="px-2.5 py-1 rounded-full bg-[#efe8de]/80 border-2 border-[rgba(176,122,77,0.35)] text-[#6b5b4d] shadow-sm">Security {node.security_score}</span>
+                  <span className="px-2.5 py-1 rounded-full bg-[#efe8de]/80 border-2 border-[rgba(176,122,77,0.35)] text-[#6b5b4d] shadow-sm">Critical {node.vulnerability_count}</span>
+                  <span className="px-2.5 py-1 rounded-full bg-[#efe8de]/80 border-2 border-[rgba(176,122,77,0.35)] text-[#6b5b4d] shadow-sm">Blast {node.blast_radius}</span>
                 </div>
               </div>
             ))}
@@ -75,8 +75,8 @@ export function SecurityOverview({ analysis, nodes }: SecurityOverviewProps) {
 
 function Metric({ label, value, accent = false, danger = false }: { label: string; value: string | number; accent?: boolean; danger?: boolean }) {
   return (
-    <div className={`glass-panel rounded-3xl p-5 border shadow-md ${danger ? 'border-[#c84a4a]/20 bg-[#fff5f5]/80' : 'border-[rgba(176,123,79,0.12)] bg-white/40'}`}>
-      <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400">{label}</p>
+    <div className={`glass-panel rounded-3xl p-5 border shadow-sm ${danger ? 'border-[#8f1d1d]/45 bg-[#fcdcd7]/70' : 'border-[rgba(176,123,79,0.24)] bg-[#f5efe7]/45'}`}>
+      <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#8f8175]">{label}</p>
       <p className={`text-2xl font-extrabold mt-2 ${accent ? 'text-[#8c6239]' : danger ? 'text-[#8f1d1d]' : 'text-slate-900'}`}>{value}</p>
     </div>
   );
