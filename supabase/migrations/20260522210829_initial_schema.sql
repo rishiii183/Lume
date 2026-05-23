@@ -19,6 +19,10 @@ create table if not exists public.analyses (
   avg_debt_score numeric(10,2) not null default 0,
   fingerprint_label text,
   fingerprint_confidence numeric(5,4),
+  security_summary jsonb,
+  security_collapse boolean not null default false,
+  critical_vulnerabilities integer not null default 0,
+  repo_security_score numeric(10,2) not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -32,9 +36,17 @@ create table if not exists public.debt_nodes (
   line_start integer not null,
   line_end integer not null,
   debt_score numeric(10,2) not null default 0,
+  security_score numeric(10,2) not null default 0,
+  security_weighted_score numeric(10,2) not null default 0,
+  has_critical_security boolean not null default false,
+  vulnerability_count integer not null default 0,
+  security_risk_level text,
   complexity integer not null default 1,
   duplication_score numeric(5,4) not null default 0,
   blast_radius integer not null default 0,
+  owasp_categories jsonb not null default '[]'::jsonb,
+  cwe_categories jsonb not null default '[]'::jsonb,
+  security_findings jsonb not null default '[]'::jsonb,
   dependencies jsonb not null default '[]'::jsonb,
   dependents jsonb not null default '[]'::jsonb,
   explanation text,
@@ -48,6 +60,7 @@ create index if not exists idx_analyses_user on public.analyses(user_id);
 create index if not exists idx_analyses_status on public.analyses(status);
 create index if not exists idx_debt_nodes_analysis on public.debt_nodes(analysis_id);
 create index if not exists idx_debt_nodes_score on public.debt_nodes(analysis_id, debt_score desc);
+create index if not exists idx_debt_nodes_security on public.debt_nodes(analysis_id, security_score desc);
 
 alter table public.analyses enable row level security;
 alter table public.debt_nodes enable row level security;

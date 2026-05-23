@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { DebtNode } from '@/types';
 import { formatScore, scoreColor, truncate } from '@/lib/utils';
+import { SecurityPanel } from '@/components/SecurityPanel';
 
 interface NodeSidebarProps {
   node: DebtNode | null;
@@ -58,7 +59,7 @@ export function NodeSidebar({ node, analysisId, onClose }: NodeSidebarProps) {
         }),
       });
       const data = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(data.error ?? 'Failed to generate explanation.');
       }
@@ -117,6 +118,16 @@ export function NodeSidebar({ node, analysisId, onClose }: NodeSidebarProps) {
           value={`${(node.duplication_score * 100).toFixed(0)}%`}
         />
         <Metric icon={FileCode} label="Type" value={node.node_type} />
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-500 font-bold uppercase tracking-[0.18em]">Security</span>
+          <span className="text-xs font-mono text-slate-500">
+            {(node.security_risk_level ?? 'none').toUpperCase()}
+          </span>
+        </div>
+        <SecurityPanel node={node} />
       </div>
 
       <div className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">

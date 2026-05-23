@@ -7,6 +7,8 @@ interface FilterBarProps {
   filter: FilterState;
   onChange: (filter: FilterState) => void;
   nodeCount: number;
+  availableOwaspCategories: string[];
+  availableCweCategories: string[];
 }
 
 const NODE_TYPES: DebtNode['node_type'][] = [
@@ -16,7 +18,13 @@ const NODE_TYPES: DebtNode['node_type'][] = [
   'variable',
 ];
 
-export function FilterBar({ filter, onChange, nodeCount }: FilterBarProps) {
+export function FilterBar({
+  filter,
+  onChange,
+  nodeCount,
+  availableOwaspCategories,
+  availableCweCategories,
+}: FilterBarProps) {
   return (
     <div className="glass-panel rounded-3xl p-5 space-y-5 border border-[rgba(176,123,79,0.12)] shadow-md bg-white/40">
       <div className="flex items-center gap-2 text-slate-800">
@@ -52,6 +60,94 @@ export function FilterBar({ filter, onChange, nodeCount }: FilterBarProps) {
         />
       </div>
 
+      <div className="space-y-2">
+        <label className="text-xs text-slate-600 font-bold block">
+          Security threshold: <span className="text-[#8f1d1d] font-mono">{filter.securityScoreThreshold}</span>
+        </label>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={filter.securityScoreThreshold}
+          onChange={(e) => onChange({ ...filter, securityScoreThreshold: Number(e.target.value) })}
+          className="w-full accent-[#8f1d1d] cursor-pointer"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-2">
+        <ToggleButton
+          active={filter.criticalSecurityOnly}
+          label="Critical security only"
+          onClick={() => onChange({ ...filter, criticalSecurityOnly: !filter.criticalSecurityOnly })}
+        />
+        <ToggleButton
+          active={filter.secretLeaksOnly}
+          label="Secret leaks only"
+          onClick={() => onChange({ ...filter, secretLeaksOnly: !filter.secretLeaksOnly })}
+        />
+        <ToggleButton
+          active={filter.injectionOnly}
+          label="Injection only"
+          onClick={() => onChange({ ...filter, injectionOnly: !filter.injectionOnly })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-bold text-slate-600">OWASP</p>
+        <div className="flex flex-wrap gap-2">
+          {availableOwaspCategories.length === 0 ? (
+            <span className="text-xs text-slate-400">No OWASP categories</span>
+          ) : (
+            availableOwaspCategories.map((category) => {
+              const active = filter.owaspCategories.includes(category);
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => {
+                    const next = active
+                      ? filter.owaspCategories.filter((item) => item !== category)
+                      : [...filter.owaspCategories, category];
+                    onChange({ ...filter, owaspCategories: next });
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${active ? 'bg-[#8f1d1d] text-white border-[#8f1d1d]' : 'bg-white/80 text-slate-600 border-slate-200 hover:border-[#8f1d1d]/30'}`}
+                >
+                  {category}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-bold text-slate-600">CWE</p>
+        <div className="flex flex-wrap gap-2">
+          {availableCweCategories.length === 0 ? (
+            <span className="text-xs text-slate-400">No CWE categories</span>
+          ) : (
+            availableCweCategories.map((category) => {
+              const active = filter.cweCategories.includes(category);
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => {
+                    const next = active
+                      ? filter.cweCategories.filter((item) => item !== category)
+                      : [...filter.cweCategories, category];
+                    onChange({ ...filter, cweCategories: next });
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${active ? 'bg-[#d85b2b] text-white border-[#d85b2b]' : 'bg-white/80 text-slate-600 border-slate-200 hover:border-[#d85b2b]/30'}`}
+                >
+                  {category}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-2 pt-1">
         {NODE_TYPES.map((type) => {
           const isActive = filter.nodeTypes.includes(type);
@@ -65,11 +161,10 @@ export function FilterBar({ filter, onChange, nodeCount }: FilterBarProps) {
                   : [...filter.nodeTypes, type];
                 onChange({ ...filter, nodeTypes: types });
               }}
-              className={`text-xs px-3 py-1.5 rounded-xl capitalize font-semibold transition-all ${
-                isActive
+              className={`text-xs px-3 py-1.5 rounded-xl capitalize font-semibold transition-all ${isActive
                   ? 'bg-gradient-to-r from-[#b07b4f] to-[#8c6239] text-white shadow-sm hover:opacity-95'
                   : 'bg-[#efe8de]/70 text-slate-600 hover:text-slate-800 hover:bg-[#e5d9c8]/70 border border-transparent'
-              }`}
+                }`}
             >
               {type}
             </button>
@@ -77,5 +172,25 @@ export function FilterBar({ filter, onChange, nodeCount }: FilterBarProps) {
         })}
       </div>
     </div>
+  );
+}
+
+function ToggleButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full rounded-xl px-3 py-2 text-left text-xs font-bold transition-all border ${active ? 'bg-[#8f1d1d] text-white border-[#8f1d1d]' : 'bg-white/80 text-slate-600 border-slate-200 hover:border-[#8f1d1d]/30'}`}
+    >
+      {label}
+    </button>
   );
 }

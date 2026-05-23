@@ -7,6 +7,9 @@ import { computeDuplicationScores } from '@/lib/duplication';
 import { computeBlastRadius, buildGraphData } from '@/lib/blast-radius';
 import { scoreAllSymbols, averageScore } from '@/lib/debt-scorer';
 import { classifyAgentCode } from '@/lib/huggingface';
+import { analyzeSecurityRepository, getSecurityNodeMetrics } from '@/lib/security/detector';
+import { computeSecurityAwarePriority } from '@/lib/security/security-scorer';
+import { isSecuritySensitivePath } from '@/lib/security/security-utils';
 
 export const maxDuration = 300;
 
@@ -206,6 +209,24 @@ async function runPipeline(
     console.error("[Pipeline Warning] Duplication analysis failed:", dupErr);
   }
 
+  console.log("[Pipeline] Progress: 52");
+  await updateAnalysisProgress(analysisId, {
+    status: 'scoring',
+    progress: 52,
+    progress_message: 'security analysis',
+  });
+
+  let securityResult = null as Awaited<ReturnType<typeof analyzeSecurityRepository>> | null;
+  try {
+    securityResult = analyzeSecurityRepository({
+      files,
+      symbols,
+      blastRadiusMap: new Map<string, number>(),
+    });
+  } catch (securityErr) {
+    console.error('[Pipeline Warning] Security detection failed:', securityErr);
+  }
+
   let blastRadiusMap = new Map<string, number>();
   try {
     blastRadiusMap = computeBlastRadius(symbols);
@@ -220,6 +241,55 @@ async function runPipeline(
     console.error("[Pipeline Warning] Debt scoring formulas failed:", scoreErr);
   }
 
+  if (!securityResult) {
+    try {
+      securityResult = analyzeSecurityRepository({
+        files,
+        symbols,
+        blastRadiusMap,
+      });
+    } catch (securityErr) {
+      console.error('[Pipeline Warning] Security analysis retry failed:', securityErr);
+    }
+  }
+
+  const securityByFile = new Map<string, ReturnType<typeof getSecurityNodeMetrics>>();
+  if (securityResult) {
+    for (const symbol of symbols) {
+      securityByFile.set(symbol.filePath, getSecurityNodeMetrics(securityResult, symbol.filePath));
+    }
+  }
+
+  const securityPriorityMap = new Map<string, number>();
+  for (const symbol of symbols) {
+    const metrics = securityByFile.get(symbol.filePath) ?? getSecurityNodeMetrics(securityResult ?? {
+      findings: [],
+      summary: { totalVulnerabilities: 0, critical: 0, high: 0, medium: 0, low: 0, score: 0, categoryCounts: {}, owaspCategories: [], cweCategories: [], topFindings: [] },
+      collapse: { isCollapsed: false, severity: 'moderate', reasons: [], affectedCoreModules: [], propagationRisk: 0 },
+      nodeMetrics: {},
+      repoSecurityScore: 0,
+      criticalVulnerabilities: 0,
+    }, symbol.filePath);
+    securityPriorityMap.set(
+      symbol.id,
+      computeSecurityAwarePriority({
+        debtScore: debtScores.get(symbol.id) ?? 0,
+        blastRadius: blastRadiusMap.get(symbol.id) ?? 0,
+        securityScore: metrics.securityScore,
+      })
+    );
+  }
+
+  const securitySummary = securityResult?.summary ?? null;
+  const repoSecurityScore = securityResult?.repoSecurityScore ?? 0;
+  const collapseResult = securityResult?.collapse ?? {
+    isCollapsed: false,
+    severity: 'moderate' as const,
+    reasons: [],
+    affectedCoreModules: [],
+    propagationRisk: 0,
+  };
+
   const avgScore = averageScore(debtScores);
 
   // 4. Isolated dependency graph generation (Requirement 10)
@@ -230,12 +300,16 @@ async function runPipeline(
     progress_message: 'generating graph',
     total_nodes: symbols.length,
     avg_debt_score: avgScore,
+    security_summary: securitySummary,
+    security_collapse: collapseResult.isCollapsed,
+    critical_vulnerabilities: securityResult?.criticalVulnerabilities ?? 0,
+    repo_security_score: repoSecurityScore,
   });
 
   let topSymbols: any[] = [];
   let links: any[] = [];
   try {
-    const graphData = buildGraphData(symbols, debtScores, blastRadiusMap);
+    const graphData = buildGraphData(symbols, debtScores, blastRadiusMap, securityPriorityMap);
     topSymbols = graphData.topSymbols;
     links = graphData.links;
   } catch (graphErr) {
@@ -280,9 +354,17 @@ async function runPipeline(
     line_start: sym.lineStart,
     line_end: sym.lineEnd,
     debt_score: debtScores.get(sym.id) ?? 0,
+    security_score: securityByFile.get(sym.filePath)?.securityScore ?? 0,
+    security_weighted_score: securityByFile.get(sym.filePath)?.securityWeightedScore ?? 0,
+    has_critical_security: securityByFile.get(sym.filePath)?.hasCriticalSecurity ?? false,
+    vulnerability_count: securityByFile.get(sym.filePath)?.vulnerabilityCount ?? 0,
+    security_risk_level: securityByFile.get(sym.filePath)?.securityRiskLevel ?? 'none',
     complexity: sym.complexity,
     duplication_score: duplicationScores.get(sym.filePath) ?? 0,
     blast_radius: blastRadiusMap.get(sym.id) ?? 0,
+    owasp_categories: securityByFile.get(sym.filePath)?.owaspCategories ?? [],
+    cwe_categories: securityByFile.get(sym.filePath)?.cweCategories ?? [],
+    security_findings: securityByFile.get(sym.filePath)?.securityFindings ?? [],
     dependencies: sym.calls.filter((c: string) => topIds.has(c)),
     dependents: sym.calledBy.filter((c: string) => topIds.has(c)),
     explanation: null,
@@ -296,9 +378,21 @@ async function runPipeline(
   for (let i = 0; i < nodesToInsert.length; i += batchSize) {
     const batch = nodesToInsert.slice(i, i + batchSize);
     const { error } = await supabase.from('debt_nodes').insert(batch);
-    if (error) {
+    if (!error) continue;
+
+    const errorMessage = error.message ?? '';
+    const isSchemaCacheError = /schema cache|Could not find the '.+' column/i.test(errorMessage);
+    if (!isSchemaCacheError) {
       console.error(`[Pipeline Error] Nodes insertion batch failed:`, error);
-      throw new Error(`Failed to save nodes in database: ${error.message}`);
+      throw new Error(`Failed to save nodes in database: ${errorMessage}`);
+    }
+
+    console.warn('[Pipeline Warning] Retrying node insert without security columns because Supabase schema cache is stale:', errorMessage);
+    const fallbackBatch = batch.map(({ security_score, security_weighted_score, has_critical_security, vulnerability_count, security_risk_level, owasp_categories, cwe_categories, security_findings, ...rest }) => rest);
+    const fallbackInsert = await supabase.from('debt_nodes').insert(fallbackBatch);
+    if (fallbackInsert.error) {
+      console.error('[Pipeline Error] Fallback insert also failed:', fallbackInsert.error);
+      throw new Error(`Failed to save nodes in database: ${fallbackInsert.error.message}`);
     }
   }
 
@@ -312,6 +406,10 @@ async function runPipeline(
     avg_debt_score: avgScore,
     fingerprint_label: fingerprintLabel ?? undefined,
     fingerprint_confidence: fingerprintConfidence ?? undefined,
+    security_summary: securitySummary,
+    security_collapse: collapseResult.isCollapsed,
+    critical_vulnerabilities: securityResult?.criticalVulnerabilities ?? 0,
+    repo_security_score: repoSecurityScore,
   });
   
   console.log(`[Pipeline] Job ${analysisId} completed successfully.`);

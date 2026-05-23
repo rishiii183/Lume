@@ -36,15 +36,17 @@ function buildAdjacency(symbols: ASTSymbol[]): Map<string, string[]> {
 export function buildGraphData(
   symbols: ASTSymbol[],
   scores: Map<string, number>,
-  blastRadiusMap: Map<string, number>
+  blastRadiusMap: Map<string, number>,
+  priorityMap?: Map<string, number>
 ): { topSymbols: ASTSymbol[]; links: GraphLink[] } {
   const ranked = [...symbols]
     .map((s) => ({
       symbol: s,
       score: scores.get(s.id) ?? 0,
       blast: blastRadiusMap.get(s.id) ?? 0,
+      priority: priorityMap?.get(s.id) ?? scores.get(s.id) ?? 0,
     }))
-    .sort((a, b) => b.score - a.score || b.blast - a.blast);
+    .sort((a, b) => b.priority - a.priority || b.score - a.score || b.blast - a.blast);
 
   const topSymbols = ranked
     .slice(0, MAX_GRAPH_NODES)
@@ -63,7 +65,7 @@ export function buildGraphData(
           links.push({
             source: sym.id,
             target: depId,
-            weight: scores.get(sym.id) ?? 1,
+            weight: priorityMap?.get(sym.id) ?? scores.get(sym.id) ?? 1,
           });
         }
       }
@@ -76,7 +78,7 @@ export function buildGraphData(
           links.push({
             source: depId,
             target: sym.id,
-            weight: scores.get(sym.id) ?? 1,
+            weight: priorityMap?.get(sym.id) ?? scores.get(sym.id) ?? 1,
           });
         }
       }
