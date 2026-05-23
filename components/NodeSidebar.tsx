@@ -12,6 +12,11 @@ import {
 import type { DebtNode } from '@/types';
 import { formatScore, scoreColor, truncate } from '@/lib/utils';
 import { SecurityPanel } from '@/components/SecurityPanel';
+import { useViewMode } from '@/contexts/ViewModeContext';
+import { buildBusinessImpactFromNode } from '@/lib/business-intelligence/business-impact';
+import { predictConsequences } from '@/lib/business-intelligence/consequence-engine';
+import { NonTechnicalExplanation } from '@/components/NonTechnicalExplanation';
+import { ConsequenceForecast } from '@/components/ConsequenceForecast';
 
 interface NodeSidebarProps {
   node: DebtNode | null;
@@ -20,16 +25,17 @@ interface NodeSidebarProps {
 }
 
 export function NodeSidebar({ node, analysisId, onClose }: NodeSidebarProps) {
+  const { mode } = useViewMode();
   const [explaining, setExplaining] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset explanation and error state when selected node changes (Requirement 18 / cleanup)
+  // Reset explanation and error state when selected node or view mode changes.
   useEffect(() => {
     setExplanation(null);
     setError(null);
     setExplaining(false);
-  }, [node?.id]);
+  }, [node?.id, mode]);
 
   if (!node) {
     return (
@@ -45,6 +51,22 @@ export function NodeSidebar({ node, analysisId, onClose }: NodeSidebarProps) {
     setExplaining(true);
     setExplanation(null);
     setError(null);
+
+    if (mode === 'business') {
+      const businessTranslation = buildBusinessImpactFromNode(node);
+      const consequenceForecast = predictConsequences({
+        vulnerabilityType: node.security_findings?.[0]?.title ?? node.symbol_name,
+        exploitabilityScore: node.exploitability_score ?? node.security_score ?? 0,
+        blastRadius: node.blast_radius ?? 0,
+        systemCriticality: node.security_weighted_score ?? 0,
+        architectureRisk: node.collapse_risk ?? 0,
+      });
+
+      setExplanation(buildBusinessExplanation(node, businessTranslation, consequenceForecast));
+      setExplaining(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/explain', {
         method: 'POST',
@@ -77,7 +99,20 @@ export function NodeSidebar({ node, analysisId, onClose }: NodeSidebarProps) {
     }
   };
 
-  const displayExplanation = explanation ?? node.explanation;
+  const persistedExplanation = mode === 'technical' && node.explanation && !/(Business:|Executive:|If ignored:)/i.test(node.explanation)
+    ? node.explanation
+    : null;
+  const displayExplanation = explanation ?? persistedExplanation;
+  const explainButtonLabel = mode === 'business' ? 'Business AI Explain' : 'Technical AI Explain (Mistral)';
+  const explanationCardLabel = mode === 'business' ? 'Business Insights' : 'Technical Insights';
+  const businessTranslation = buildBusinessImpactFromNode(node);
+  const consequenceForecast = predictConsequences({
+    vulnerabilityType: node.security_findings?.[0]?.title ?? node.symbol_name,
+    exploitabilityScore: node.exploitability_score ?? node.security_score ?? 0,
+    blastRadius: node.blast_radius ?? 0,
+    systemCriticality: node.security_weighted_score ?? 0,
+    architectureRisk: node.collapse_risk ?? 0,
+  });
 
   return (
     <div className="glass-panel rounded-3xl p-5 h-full overflow-y-auto scrollbar-thin space-y-5 border border-[rgba(176,123,79,0.12)] shadow-md bg-white/40">
@@ -120,6 +155,13 @@ export function NodeSidebar({ node, analysisId, onClose }: NodeSidebarProps) {
         <Metric icon={FileCode} label="Type" value={node.node_type} />
       </div>
 
+      {mode === 'business' && (
+        <div className="space-y-4">
+          <NonTechnicalExplanation translation={businessTranslation} />
+          <ConsequenceForecast forecast={consequenceForecast} />
+        </div>
+      )}
+
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs text-slate-500 font-bold uppercase tracking-[0.18em]">Security</span>
@@ -152,7 +194,7 @@ export function NodeSidebar({ node, analysisId, onClose }: NodeSidebarProps) {
         ) : (
           <Sparkles className="w-4 h-4" />
         )}
-        <span>AI Explain (Mistral)</span>
+        <span>{explainButtonLabel}</span>
       </button>
 
       {error && (
@@ -166,13 +208,29 @@ export function NodeSidebar({ node, analysisId, onClose }: NodeSidebarProps) {
         <div className="bg-gradient-to-br from-[#fffaf5] to-[#f5efe7]/60 border border-[rgba(176,123,79,0.15)] rounded-2xl p-5 text-sm text-slate-700 leading-relaxed shadow-sm font-medium relative overflow-hidden">
           <div className="flex items-center gap-1.5 text-[#b07b4f] font-bold text-xs mb-2.5 uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-            <span>Architectural Insights</span>
+            <span>{explanationCardLabel}</span>
           </div>
           <p className="leading-relaxed">{displayExplanation}</p>
         </div>
       )}
     </div>
   );
+}
+
+function buildBusinessExplanation(
+  node: DebtNode,
+  translation: ReturnType<typeof buildBusinessImpactFromNode>,
+  forecast: ReturnType<typeof predictConsequences>
+) {
+  return [
+    translation.executiveSummary,
+    `Business impact: ${translation.businessImpact}`,
+    `Customer impact: ${translation.customerImpact}`,
+    `Operational risk: ${translation.operationalRisk}`,
+    `Financial risk: ${translation.financialRisk}`,
+    `What happens if ignored: ${forecast.shortTermImpact} ${forecast.longTermImpact}`,
+    `Recommended action: ${translation.recommendedAction}`,
+  ].join(' ');
 }
 
 function Metric({

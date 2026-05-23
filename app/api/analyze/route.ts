@@ -10,6 +10,9 @@ import { classifyAgentCode } from '@/lib/huggingface';
 import { analyzeSecurityRepository, getSecurityNodeMetrics } from '@/lib/security/detector';
 import { computeSecurityAwarePriority } from '@/lib/security/security-scorer';
 import { isSecuritySensitivePath } from '@/lib/security/security-utils';
+import { analyzeExploitabilityRepository } from '@/lib/exploitability/exploitability-engine';
+import { buildSecurityAttackGraph } from '@/lib/attack-graph/graph-builder';
+import { buildCollapsePrediction } from '@/lib/collapse/collapse-engine';
 
 export const maxDuration = 300;
 
@@ -227,6 +230,13 @@ async function runPipeline(
     console.error('[Pipeline Warning] Security detection failed:', securityErr);
   }
 
+  let exploitabilityResult = analyzeExploitabilityRepository({
+    files,
+    symbols,
+    securityResult,
+    blastRadiusMap: new Map<string, number>(),
+  });
+
   let blastRadiusMap = new Map<string, number>();
   try {
     blastRadiusMap = computeBlastRadius(symbols);
@@ -253,6 +263,13 @@ async function runPipeline(
     }
   }
 
+  exploitabilityResult = analyzeExploitabilityRepository({
+    files,
+    symbols,
+    securityResult,
+    blastRadiusMap,
+  });
+
   const securityByFile = new Map<string, ReturnType<typeof getSecurityNodeMetrics>>();
   if (securityResult) {
     for (const symbol of symbols) {
@@ -270,12 +287,16 @@ async function runPipeline(
       repoSecurityScore: 0,
       criticalVulnerabilities: 0,
     }, symbol.filePath);
+    const exploitabilityMetrics = exploitabilityResult.nodeExploitability[symbol.id];
     securityPriorityMap.set(
       symbol.id,
       computeSecurityAwarePriority({
         debtScore: debtScores.get(symbol.id) ?? 0,
         blastRadius: blastRadiusMap.get(symbol.id) ?? 0,
         securityScore: metrics.securityScore,
+        exploitabilityScore: exploitabilityMetrics?.exploitabilityScore ?? 0,
+        collapseRisk: exploitabilityMetrics?.propagationRisk ?? 0,
+        publicExposure: exploitabilityMetrics?.publicExposure ?? false,
       })
     );
   }
@@ -289,6 +310,20 @@ async function runPipeline(
     affectedCoreModules: [],
     propagationRisk: 0,
   };
+  const attackGraph = buildSecurityAttackGraph({
+    symbols,
+    securityResult,
+    exploitabilityByNode: exploitabilityResult.nodeExploitability,
+    blastRadiusMap,
+  });
+  const collapsePrediction = buildCollapsePrediction({
+    repoSecurityScore,
+    criticalVulnerabilities: securityResult?.criticalVulnerabilities ?? 0,
+    securityResult,
+    exploitabilityResult,
+    symbols,
+    blastRadiusMap,
+  });
 
   const avgScore = averageScore(debtScores);
 
@@ -304,6 +339,11 @@ async function runPipeline(
     security_collapse: collapseResult.isCollapsed,
     critical_vulnerabilities: securityResult?.criticalVulnerabilities ?? 0,
     repo_security_score: repoSecurityScore,
+    collapse_score: collapsePrediction.collapseScore,
+    collapse_prediction: collapsePrediction,
+    attack_graph: attackGraph,
+    repo_exploitability_score: exploitabilityResult.repoExploitabilityScore,
+    high_risk_attack_paths: attackGraph.criticalPaths,
   });
 
   let topSymbols: any[] = [];
@@ -359,6 +399,16 @@ async function runPipeline(
     has_critical_security: securityByFile.get(sym.filePath)?.hasCriticalSecurity ?? false,
     vulnerability_count: securityByFile.get(sym.filePath)?.vulnerabilityCount ?? 0,
     security_risk_level: securityByFile.get(sym.filePath)?.securityRiskLevel ?? 'none',
+    exploitability_score: exploitabilityResult.nodeExploitability[sym.id]?.exploitabilityScore ?? 0,
+    collapse_risk: exploitabilityResult.nodeExploitability[sym.id]?.propagationRisk ?? 0,
+    autofix_available: Boolean((securityByFile.get(sym.filePath)?.hasCriticalSecurity ?? false) || (exploitabilityResult.nodeExploitability[sym.id]?.exploitabilityScore ?? 0) >= 60),
+    attack_surface_score: exploitabilityResult.nodeExploitability[sym.id]?.attackSurfaceScore ?? 0,
+    propagation_risk: exploitabilityResult.nodeExploitability[sym.id]?.propagationRisk ?? 0,
+    public_exposure: exploitabilityResult.nodeExploitability[sym.id]?.publicExposure ?? false,
+    critical_attack_paths: attackGraph.paths.filter((path) => path.sourceNode === sym.id || path.targetNode === sym.id).slice(0, 8),
+    fix_patch: null,
+    fix_confidence: 0,
+    merge_risk: null,
     complexity: sym.complexity,
     duplication_score: duplicationScores.get(sym.filePath) ?? 0,
     blast_radius: blastRadiusMap.get(sym.id) ?? 0,
@@ -388,7 +438,7 @@ async function runPipeline(
     }
 
     console.warn('[Pipeline Warning] Retrying node insert without security columns because Supabase schema cache is stale:', errorMessage);
-    const fallbackBatch = batch.map(({ security_score, security_weighted_score, has_critical_security, vulnerability_count, security_risk_level, owasp_categories, cwe_categories, security_findings, ...rest }) => rest);
+    const fallbackBatch = batch.map(({ security_score, security_weighted_score, has_critical_security, vulnerability_count, security_risk_level, owasp_categories, cwe_categories, security_findings, exploitability_score, collapse_risk, autofix_available, attack_surface_score, propagation_risk, public_exposure, critical_attack_paths, fix_patch, fix_confidence, merge_risk, ...rest }) => rest);
     const fallbackInsert = await supabase.from('debt_nodes').insert(fallbackBatch);
     if (fallbackInsert.error) {
       console.error('[Pipeline Error] Fallback insert also failed:', fallbackInsert.error);
@@ -410,6 +460,11 @@ async function runPipeline(
     security_collapse: collapseResult.isCollapsed,
     critical_vulnerabilities: securityResult?.criticalVulnerabilities ?? 0,
     repo_security_score: repoSecurityScore,
+    collapse_score: collapsePrediction.collapseScore,
+    collapse_prediction: collapsePrediction,
+    attack_graph: attackGraph,
+    repo_exploitability_score: exploitabilityResult.repoExploitabilityScore,
+    high_risk_attack_paths: attackGraph.criticalPaths,
   });
   
   console.log(`[Pipeline] Job ${analysisId} completed successfully.`);

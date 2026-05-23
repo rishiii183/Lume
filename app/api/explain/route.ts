@@ -39,11 +39,6 @@ export async function POST(request: NextRequest) {
 
     console.log("[Explain] Selected node:", node);
 
-    // If node already has an explanation, serve it directly
-    if (node.explanation) {
-      return NextResponse.json({ explanation: node.explanation });
-    }
-
     let codeSnippet = reqCodeSnippet || `// ${node.symbol_name} in ${node.file_path}\n// Lines ${node.line_start}-${node.line_end}`;
     
     // Fetch code snippet in try/catch isolated block using fast direct file fetch to avoid rate limits

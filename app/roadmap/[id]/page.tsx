@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Radar } from 'lucide-react';
@@ -9,12 +9,25 @@ import { FingerprintCard } from '@/components/FingerprintCard';
 import { LoadingState } from '@/components/LoadingState';
 import { nodesToRoadmap } from '@/lib/csv';
 import type { AnalysisRecord, DebtNode, RoadmapItem } from '@/types';
+import { ExecutiveRiskCard } from '@/components/ExecutiveRiskCard';
+import { TrustScoreCard } from '@/components/TrustScoreCard';
+import { DeploymentConfidenceCard } from '@/components/DeploymentConfidenceCard';
+import { BusinessImpactPanel } from '@/components/BusinessImpactPanel';
+import { ConsequenceForecast } from '@/components/ConsequenceForecast';
+import type { TrustScoreResult, DeploymentConfidenceResult, ConsequencePredictionResult } from '@/types';
+import { useViewMode } from '@/contexts/ViewModeContext';
+import { buildBusinessImpactFromNode } from '@/lib/business-intelligence/business-impact';
 
 export default function RoadmapPage() {
   const params = useParams();
   const analysisId = params.id as string;
+  const { mode } = useViewMode();
   const [analysis, setAnalysis] = useState<AnalysisRecord | null>(null);
+  const [nodes, setNodes] = useState<DebtNode[]>([]);
   const [items, setItems] = useState<RoadmapItem[]>([]);
+  const [trustScore, setTrustScore] = useState<TrustScoreResult | null>(null);
+  const [deploymentConfidence, setDeploymentConfidence] = useState<DeploymentConfidenceResult | null>(null);
+  const [consequenceForecast, setConsequenceForecast] = useState<ConsequencePredictionResult | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,7 +37,12 @@ export default function RoadmapPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         setAnalysis(data.analysis);
-        setItems(nodesToRoadmap((data.nodes ?? []) as DebtNode[]));
+        const loadedNodes = (data.nodes ?? []) as DebtNode[];
+        setNodes(loadedNodes);
+        setItems(nodesToRoadmap(loadedNodes));
+        setTrustScore(data.trustScore ?? null);
+        setDeploymentConfidence(data.deploymentConfidence ?? null);
+        setConsequenceForecast(data.consequenceForecast ?? null);
       } catch {
         /* handled by empty state */
       } finally {
@@ -33,6 +51,8 @@ export default function RoadmapPage() {
     }
     load();
   }, [analysisId]);
+
+  const businessTranslations = useMemo(() => nodes.slice(0, 5).map((node) => buildBusinessImpactFromNode(node)), [nodes]);
 
   if (loading) {
     return (
@@ -54,11 +74,13 @@ export default function RoadmapPage() {
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <Radar className="w-5 h-5 text-accent-cyan" />
-            <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Refactoring Roadmap</h1>
+            <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">
+              {mode === 'business' ? 'Business Risk Roadmap' : 'Refactoring Roadmap'}
+            </h1>
           </div>
           {analysis && (
             <p className="text-slate-500 text-sm mt-1.5 font-bold">
-              {analysis.repo_owner}/{analysis.repo_name} — prioritized by debt and security risk
+              {analysis.repo_owner}/{analysis.repo_name} — {mode === 'business' ? 'prioritized by trust, impact, and deployment risk' : 'prioritized by debt and security risk'}
             </p>
           )}
         </div>
@@ -81,6 +103,26 @@ export default function RoadmapPage() {
           )}
         </div>
         <div className="lg:col-span-3">
+          {mode === 'business' && (
+            <div className="grid xl:grid-cols-[1.1fr_0.9fr] gap-6 mb-6">
+              <ExecutiveRiskCard analysis={analysis} />
+              <TrustScoreCard trust={trustScore} />
+            </div>
+          )}
+          {mode === 'business' && (
+            <div className="grid xl:grid-cols-2 gap-6 mb-6">
+              <DeploymentConfidenceCard confidence={deploymentConfidence} />
+              <ConsequenceForecast forecast={consequenceForecast} />
+            </div>
+          )}
+          {mode === 'business' && analysis && (
+            <BusinessImpactPanel
+              risks={businessTranslations}
+              operationalRisks={analysis.operationalRisks ?? []}
+              customerImpact={analysis.customerImpact ?? []}
+              ignoreConsequences={analysis.ignoreConsequences ?? []}
+            />
+          )}
           <RoadmapTable items={items} analysisId={analysisId} />
         </div>
       </div>
