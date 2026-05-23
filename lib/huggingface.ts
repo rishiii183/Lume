@@ -147,16 +147,18 @@ export async function generateDebtExplanation(context: {
     .map((finding) => `- [${finding.severity}] ${finding.title}: ${finding.evidence}`)
     .join('\n');
 
-  const prompt = `<s>[INST] You are a senior security architect and technical debt expert.
+  const prompt = `<s>[INST] You are a senior software architect.
+
+Write a technical-only explanation for engineers. Do not mention business impact, customers, executives, or finance.
 
 Analyze this code symbol for technical debt, security vulnerabilities, exploitability, propagation risk, and remediation steps.
 
 Return strict JSON:
 {
   "summary": "",
-  "technicalDebt": [],
-  "securityFindings": [],
-  "criticalRisks": [],
+  "rootCause": "",
+  "technicalRisk": "",
+  "codeLevelImpact": "",
   "recommendedFixes": [],
   "priorityLevel": ""
 }
@@ -176,11 +178,13 @@ Code:
 ${truncatedCode}
 \`\`\`
 
+Technical writing rules:
+- explain the root cause in code terms
+- describe the exact failure mode and propagation path
+- describe why the issue is hard to maintain or secure
+- recommend code-level fixes only
+
 Provide only JSON. [/INST]`;
-
-  console.log("[Explain] Prompt length:", prompt.length);
-  console.log("[Explain] Calling HuggingFace...");
-
   try {
     const raw = await callHF(EXPLANATION_MODEL, prompt, { max_new_tokens: 380 });
     const parsed = parseSecurityExplanation(raw);
@@ -189,7 +193,12 @@ Provide only JSON. [/INST]`;
   } catch (err) {
     console.warn("[HuggingFace] Primary model failed due to offline state or timeout. Attempting fallback model...");
     try {
-      const fallbackPrompt = `Explain technical debt for ${truncatedSymbol} in ${truncatedPath} (score ${context.debtScore}): ${truncatedCode.slice(0, 400)}`;
+      const fallbackPrompt = `Explain this symbol for engineers only. Focus on code-level behavior, root cause, technical risk, and concrete fixes.
+
+Symbol: ${truncatedSymbol}
+File: ${truncatedPath}
+Score: ${context.debtScore}
+Code: ${truncatedCode.slice(0, 400)}`;
       const raw = await callHF(FALLBACK_MODEL, fallbackPrompt, { max_new_tokens: 150 });
       const parsed = parseSecurityExplanation(raw);
       return parsed ?? raw;
@@ -207,18 +216,18 @@ function parseSecurityExplanation(raw: string): string | null {
   try {
     const parsed = JSON.parse(jsonCandidate) as {
       summary?: string;
-      technicalDebt?: string[];
-      securityFindings?: string[];
-      criticalRisks?: string[];
+      rootCause?: string;
+      technicalRisk?: string;
+      codeLevelImpact?: string;
       recommendedFixes?: string[];
       priorityLevel?: string;
     };
     const sections = [
       parsed.summary ? `Summary: ${parsed.summary}` : '',
+      parsed.rootCause ? `Root cause: ${parsed.rootCause}` : '',
+      parsed.technicalRisk ? `Technical risk: ${parsed.technicalRisk}` : '',
+      parsed.codeLevelImpact ? `Code impact: ${parsed.codeLevelImpact}` : '',
       parsed.priorityLevel ? `Priority: ${parsed.priorityLevel}` : '',
-      parsed.technicalDebt?.length ? `Technical debt: ${parsed.technicalDebt.join('; ')}` : '',
-      parsed.securityFindings?.length ? `Security findings: ${parsed.securityFindings.join('; ')}` : '',
-      parsed.criticalRisks?.length ? `Critical risks: ${parsed.criticalRisks.join('; ')}` : '',
       parsed.recommendedFixes?.length ? `Recommended fixes: ${parsed.recommendedFixes.join('; ')}` : '',
     ].filter(Boolean);
 
@@ -238,14 +247,15 @@ function generateSecurityHeuristicExplanation(context: {
   vulnerabilityCount?: number;
   securityRiskLevel?: string;
 }): string {
-  const debt = generateHeuristicExplanation(context);
   const securityLines = [
     `Security score: ${context.securityScore ?? 0}/100`,
     `Vulnerability count: ${context.vulnerabilityCount ?? 0}`,
     `Risk level: ${context.securityRiskLevel ?? 'none'}`,
+    `Blast radius: ${context.blastRadius}`,
+    `Technical implication: ${context.blastRadius > 5 ? 'This spreads through multiple dependent code paths.' : 'This is mostly localized to a smaller code path.'}`,
   ];
 
-  return `${debt} ${securityLines.join('. ')}. Prioritize remediation in the highest blast-radius paths first.`;
+  return `${generateHeuristicExplanation(context)} ${securityLines.join('. ')}. Prioritize remediation in the highest blast-radius paths first.`;
 }
 
 export async function classifyAgentCode(codeSnippet: string): Promise<{

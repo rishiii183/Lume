@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import * as d3 from 'd3';
 import type { DebtNode, GraphLink } from '@/types';
 import { scoreColor } from '@/lib/utils';
+import { useViewMode } from '@/contexts/ViewModeContext';
 
 interface HeatMapProps {
   nodes: DebtNode[];
@@ -42,6 +43,7 @@ export function HeatMap({
   width = 800,
   height = 600,
 }: HeatMapProps) {
+  const { mode } = useViewMode();
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const zoomRef = useRef<any>(null);
@@ -252,6 +254,15 @@ export function HeatMap({
       const securityScore = Number.isFinite(d.security_score) ? d.security_score : 0;
       const vulnerabilityCount = Number.isFinite(d.vulnerability_count) ? d.vulnerability_count : 0;
       const riskLevel = d.security_risk_level ?? 'none';
+      if (mode === 'business') {
+        return [
+          businessLabel(d),
+          `Customer impact: ${d.has_critical_security ? 'High' : 'Moderate'}`,
+          `Deployment danger: ${d.security_score >= 75 ? 'High' : 'Moderate'}`,
+          'This issue could affect important parts of the application.',
+        ].join('\n');
+      }
+
       return [
         d.symbol_name,
         `Debt score: ${debtScore.toFixed(1)}`,
@@ -295,7 +306,7 @@ export function HeatMap({
       .selectAll('text')
       .data(simNodes.filter((d) => d.debt_score >= 60))
       .join('text')
-      .text((d) => d.symbol_name)
+      .text((d) => mode === 'business' ? businessLabel(d) : d.symbol_name)
       .attr('font-size', 9.5)
       .attr('font-weight', '650')
       .attr('fill', '#6b5b4d') // Secondary warm brown text
@@ -333,7 +344,7 @@ export function HeatMap({
     });
 
     svg.on('click', () => onSelect(null));
-  }, [nodes, links, selectedId, onSelect, width, height]);
+  }, [nodes, links, selectedId, onSelect, width, height, mode]);
 
   useEffect(() => {
     render();
@@ -389,7 +400,9 @@ export function HeatMap({
 
       {/* Floating Graph Legend Bottom-Left */}
       <div className="absolute bottom-5 left-5 flex flex-wrap items-center gap-4 bg-[#fffdf9]/95 backdrop-blur px-5 py-3 rounded-full border border-[rgba(176,122,77,0.14)] shadow-md z-20 text-xs font-semibold text-[#6b5b4d]">
-        <span className="text-[10px] uppercase tracking-wider text-[#8f8175] font-extrabold mr-1">Debt Score:</span>
+        <span className="text-[10px] uppercase tracking-wider text-[#8f8175] font-extrabold mr-1">
+          {mode === 'business' ? 'Risk Zones:' : 'Debt Score:'}
+        </span>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-[#93ab68] inline-block shadow-sm" />
           <span>0 - 10</span>
@@ -436,4 +449,12 @@ function getLinkNode(endpoint: SimNode | string): SimNode {
     } as SimNode;
   }
   return endpoint;
+}
+
+function businessLabel(node: SimNode): string {
+  if (node.has_critical_security && node.security_risk_level === 'critical') return 'Critical Business Risk';
+  if (node.security_score >= 75 || node.vulnerability_count >= 3) return 'Unsafe Module';
+  if (node.blast_radius >= 8) return 'Risk Zone';
+  if (node.security_findings.length > 0) return 'Customer Exposure';
+  return 'High Failure Probability';
 }

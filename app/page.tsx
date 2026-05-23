@@ -15,33 +15,33 @@ import { URLInput } from '@/components/URLInput';
 const FEATURES = [
   {
     icon: GitBranch,
-    title: 'AST Analysis',
-    desc: 'Parse JS/TS with acorn to map functions, classes, and call graphs.',
+    title: 'Software Trust Analysis',
+    desc: 'Map code structure, risk hot spots, and shipping confidence across the repository.',
   },
   {
     icon: TrendingUp,
-    title: 'Debt Scoring',
-    desc: 'Weighted formula across complexity, duplication, blast radius, and coupling.',
+    title: 'Deployment Confidence',
+    desc: 'Estimate whether the system is safe to ship, needs review, or should pause release.',
   },
   {
     icon: Brain,
-    title: 'AI Explanations',
-    desc: 'Mistral-7B via Hugging Face explains why each symbol carries debt.',
+    title: 'Executive Translation',
+    desc: 'Convert technical findings into customer, operational, and business impact.',
   },
   {
     icon: Shield,
-    title: 'Debt Fingerprint',
-    desc: 'FLAN-T5 classifies code into agent-style debt categories.',
+    title: 'Trust Score',
+    desc: 'Summarize repository health, security exposure, and production readiness.',
   },
   {
     icon: Zap,
-    title: 'Blast Radius',
-    desc: 'BFS dependency traversal capped at 200 nodes for actionable graphs.',
+    title: 'If Ignored Forecast',
+    desc: 'Show what happens if risk is not addressed: outages, exposure, or slower delivery.',
   },
   {
     icon: Radar,
-    title: 'D3 Force Graph',
-    desc: 'Interactive heat map with zoom, pan, and drag for exploration.',
+    title: 'Risk Graph',
+    desc: 'Interactive map that works for engineers, founders, and decision makers.',
   },
 ];
 
@@ -74,18 +74,17 @@ export default function HomePage() {
       <section className="text-center mb-16">
         <div className="inline-flex items-center gap-2 bg-[#efe8de] border border-[rgba(176,123,79,0.15)] rounded-full px-4.5 py-1.5 text-sm text-[#b07b4f] font-semibold mb-6 shadow-sm">
           <Radar className="w-4 h-4" />
-          Hackathon MVP — Production Ready
+          AI Software Trust Intelligence Platform
         </div>
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight mb-6 text-slate-900 leading-tight">
-          Map Your{' '}
+          Can This Software Be Trusted{' '}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#b07b4f] to-[#8c6239]">
-            Technical Debt
+            And Safely Shipped
           </span>
         </h1>
         <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
-          Paste a GitHub repo URL. DebtRadar fetches code, runs AST analysis,
-          scores debt hotspots, and visualizes blast radius — with AI explanations
-          powered by Hugging Face.
+          Paste a GitHub repo URL. DebtRadar now translates technical and security findings into
+          trust, deployment, customer, and operational impact for both engineers and business stakeholders.
         </p>
         <div className="flex justify-center">
           <URLInput onSubmit={handleAnalyze} loading={loading} />

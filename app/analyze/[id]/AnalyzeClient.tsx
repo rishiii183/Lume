@@ -12,23 +12,44 @@ import { LoadingState } from '@/components/LoadingState';
 import { ProgressBar } from '@/components/ProgressBar';
 import { SecurityCollapseBanner } from '@/components/SecurityCollapseBanner';
 import { SecurityOverview } from '@/components/SecurityOverview';
+import { AttackPropagationGraph } from '@/components/AttackPropagationGraph';
+import { CollapsePredictionPanel } from '@/components/CollapsePredictionPanel';
+import { AutoFixPanel } from '@/components/AutoFixPanel';
+import { ExploitabilityBadge } from '@/components/ExploitabilityBadge';
+import { ExecutiveRiskCard } from '@/components/ExecutiveRiskCard';
+import { TrustScoreCard } from '@/components/TrustScoreCard';
+import { DeploymentConfidenceCard } from '@/components/DeploymentConfidenceCard';
+import { BusinessImpactPanel } from '@/components/BusinessImpactPanel';
+import { ConsequenceForecast } from '@/components/ConsequenceForecast';
+import { useViewMode } from '@/contexts/ViewModeContext';
+import { buildBusinessImpactFromNode } from '@/lib/business-intelligence/business-impact';
 import type {
   AnalysisRecord,
   DebtNode,
   GraphLink,
   FilterState,
+  AutoFixResult,
+  TrustScoreResult,
+  DeploymentConfidenceResult,
+  ConsequencePredictionResult,
 } from '@/types';
 
 function AnalyzeContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { mode } = useViewMode();
   const analysisId = params.id as string;
 
   const [analysis, setAnalysis] = useState<AnalysisRecord | null>(null);
   const [nodes, setNodes] = useState<DebtNode[]>([]);
   const [links, setLinks] = useState<GraphLink[]>([]);
   const [selected, setSelected] = useState<DebtNode | null>(null);
+  const [autofixResult, setAutofixResult] = useState<AutoFixResult | null>(null);
+  const [autofixLoading, setAutofixLoading] = useState(false);
+  const [trustScore, setTrustScore] = useState<TrustScoreResult | null>(null);
+  const [deploymentConfidence, setDeploymentConfidence] = useState<DeploymentConfidenceResult | null>(null);
+  const [consequenceForecast, setConsequenceForecast] = useState<ConsequencePredictionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterState>({
     minScore: 0,
@@ -41,6 +62,11 @@ function AnalyzeContent() {
     securityScoreThreshold: 0,
     secretLeaksOnly: false,
     injectionOnly: false,
+    exploitableOnly: false,
+    collapseCriticalOnly: false,
+    attackPathOnly: false,
+    publicExposureOnly: false,
+    autofixAvailableOnly: false,
   });
 
   const poll = useCallback(async () => {
@@ -57,6 +83,9 @@ function AnalyzeContent() {
       setAnalysis(data.analysis);
       setNodes(data.nodes ?? []);
       setLinks(data.links ?? []);
+      setTrustScore(data.trustScore ?? null);
+      setDeploymentConfidence(data.deploymentConfidence ?? null);
+      setConsequenceForecast(data.consequenceForecast ?? null);
 
       if (data.analysis.status === 'failed') {
         setError(data.analysis.error_message ?? 'Analysis failed');
@@ -100,6 +129,10 @@ function AnalyzeContent() {
     }
   }, [searchParams, nodes]);
 
+  useEffect(() => {
+    setAutofixResult(null);
+  }, [selected?.id]);
+
   const filteredNodes = useMemo(() => {
     return nodes.filter((n) => {
       if (n.debt_score > filter.maxScore) return false;
@@ -107,6 +140,11 @@ function AnalyzeContent() {
       if (n.security_score < filter.securityScoreThreshold) return false;
       if (!filter.nodeTypes.includes(n.node_type)) return false;
       if (filter.criticalSecurityOnly && !n.has_critical_security) return false;
+      if (filter.exploitableOnly && (n.exploitability_score ?? 0) < 55) return false;
+      if (filter.publicExposureOnly && !n.public_exposure) return false;
+      if (filter.autofixAvailableOnly && !n.autofix_available) return false;
+      if (filter.collapseCriticalOnly && (n.collapse_risk ?? 0) < 70) return false;
+      if (filter.attackPathOnly && (n.critical_attack_paths?.length ?? 0) === 0) return false;
       if (filter.owaspCategories.length > 0 && !n.owasp_categories.some((category) => filter.owaspCategories.includes(category))) return false;
       if (filter.cweCategories.length > 0 && !n.cwe_categories.some((category) => filter.cweCategories.includes(category))) return false;
       if (filter.secretLeaksOnly && !n.security_findings.some((finding) => finding.category === 'Secrets')) return false;
@@ -145,6 +183,33 @@ function AnalyzeContent() {
     () => nodes.flatMap((node) => node.security_findings ?? []),
     [nodes]
   );
+
+  const businessRisks = analysis?.businessRisks ?? [];
+  const operationalRisks = analysis?.operationalRisks ?? [];
+  const customerImpact = analysis?.customerImpact ?? [];
+  const ignoreConsequences = analysis?.ignoreConsequences ?? [];
+  const businessTranslations = useMemo(() => nodes.slice(0, 5).map((node) => buildBusinessImpactFromNode(node)), [nodes]);
+
+  const autofixEnabledFinding = selected?.security_findings?.[0] ?? null;
+
+  const handleGenerateAutofix = useCallback(async () => {
+    if (!selected || autofixLoading || !autofixEnabledFinding) return;
+    setAutofixLoading(true);
+    try {
+      const res = await fetch('/api/autofix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ analysisId, nodeId: selected.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Autofix failed');
+      setAutofixResult(data.autofix ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Autofix failed');
+    } finally {
+      setAutofixLoading(false);
+    }
+  }, [analysisId, autofixEnabledFinding, autofixLoading, selected]);
 
   const collapseBanner = useMemo(() => {
     if (!analysis?.security_collapse) return null;
@@ -294,7 +359,67 @@ function AnalyzeContent() {
           <SecurityCollapseBanner collapse={collapseBanner} criticalFindings={analysis.critical_vulnerabilities} />
         )}
 
+        {mode === 'business' && (
+          <div className="grid xl:grid-cols-[1.1fr_0.9fr] gap-6">
+            <ExecutiveRiskCard analysis={analysis} />
+            <TrustScoreCard trust={trustScore} />
+          </div>
+        )}
+
+        {mode === 'business' && (
+          <div className="grid xl:grid-cols-2 gap-6">
+            <DeploymentConfidenceCard confidence={deploymentConfidence} />
+            <ConsequenceForecast forecast={consequenceForecast} />
+          </div>
+        )}
+
+        {mode === 'business' && (
+          <BusinessImpactPanel
+            risks={businessTranslations}
+            operationalRisks={operationalRisks}
+            customerImpact={customerImpact}
+            ignoreConsequences={ignoreConsequences}
+          />
+        )}
+
         <SecurityOverview analysis={analysis} nodes={nodes} />
+
+        <div className="grid xl:grid-cols-2 gap-6">
+          <CollapsePredictionPanel prediction={analysis.collapse_prediction} />
+          <AttackPropagationGraph graph={analysis.attack_graph} />
+        </div>
+
+        <div className="grid xl:grid-cols-[1.2fr_0.8fr] gap-6">
+          <div className="space-y-6">
+            {selected && (
+              <div className="glass-panel rounded-[24px] p-6 border border-white/10 space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-100">Selected node risk</h3>
+                    <p className="text-sm text-slate-400">Combined debt, security, and exploitability view.</p>
+                  </div>
+                  <ExploitabilityBadge score={selected.exploitability_score} publicExposure={selected.public_exposure} />
+                </div>
+                <div className="grid gap-3 md:grid-cols-4 text-sm text-slate-300">
+                  <div className="rounded-2xl bg-white/5 p-3">Collapse risk <span className="font-semibold text-slate-100">{Math.round(selected.collapse_risk)}</span></div>
+                  <div className="rounded-2xl bg-white/5 p-3">Attack surface <span className="font-semibold text-slate-100">{Math.round(selected.attack_surface_score)}</span></div>
+                  <div className="rounded-2xl bg-white/5 p-3">Propagation <span className="font-semibold text-slate-100">{Math.round(selected.propagation_risk)}</span></div>
+                  <div className="rounded-2xl bg-white/5 p-3">Autofix <span className="font-semibold text-slate-100">{selected.autofix_available ? 'available' : 'pending'}</span></div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGenerateAutofix}
+                  disabled={autofixLoading || !autofixEnabledFinding}
+                  className="rounded-xl bg-cyan-500/20 px-4 py-2 text-sm font-semibold text-cyan-100 border border-cyan-400/30 disabled:opacity-50"
+                >
+                  {autofixLoading ? 'Generating autofix...' : 'Generate autofix'}
+                </button>
+              </div>
+            )}
+            <AutoFixPanel result={autofixResult} />
+          </div>
+          <div />
+        </div>
 
         {/* Dynamic visual graph and filters block */}
         <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">

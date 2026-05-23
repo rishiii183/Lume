@@ -90,6 +90,31 @@ export function FilterBar({
           label="Injection only"
           onClick={() => onChange({ ...filter, injectionOnly: !filter.injectionOnly })}
         />
+        <ToggleButton
+          active={filter.exploitableOnly}
+          label="Exploitable only"
+          onClick={() => onChange({ ...filter, exploitableOnly: !filter.exploitableOnly })}
+        />
+        <ToggleButton
+          active={filter.publicExposureOnly}
+          label="Public exposure only"
+          onClick={() => onChange({ ...filter, publicExposureOnly: !filter.publicExposureOnly })}
+        />
+        <ToggleButton
+          active={filter.autofixAvailableOnly}
+          label="Autofix available"
+          onClick={() => onChange({ ...filter, autofixAvailableOnly: !filter.autofixAvailableOnly })}
+        />
+        <ToggleButton
+          active={filter.collapseCriticalOnly}
+          label="Collapse critical only"
+          onClick={() => onChange({ ...filter, collapseCriticalOnly: !filter.collapseCriticalOnly })}
+        />
+        <ToggleButton
+          active={filter.attackPathOnly}
+          label="Attack path only"
+          onClick={() => onChange({ ...filter, attackPathOnly: !filter.attackPathOnly })}
+        />
       </div>
 
       <div className="space-y-2">

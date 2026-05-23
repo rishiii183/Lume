@@ -43,8 +43,15 @@ export function computeSecurityAwarePriority(params: {
   debtScore: number;
   blastRadius: number;
   securityScore: number;
+  exploitabilityScore?: number;
+  collapseRisk?: number;
+  publicExposure?: boolean;
 }): number {
-  return Math.round((params.debtScore * params.blastRadius) + (params.securityScore * 1.5));
+  const base = (params.debtScore * params.blastRadius) + (params.securityScore * 1.5);
+  const exploitabilityBoost = params.exploitabilityScore ?? 0;
+  const collapseBoost = params.collapseRisk ?? 0;
+  const exposureBoost = params.publicExposure ? 18 : 0;
+  return Math.round(base + exploitabilityBoost * 1.2 + collapseBoost * 0.8 + exposureBoost);
 }
 
 export function sortBySecurityRisk<T extends { securityScore: number; debtScore: number }>(items: T[]): T[] {

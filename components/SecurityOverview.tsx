@@ -4,6 +4,7 @@ import type { AnalysisRecord, DebtNode, SecurityFinding } from '@/types';
 import { SecurityBadge } from '@/components/SecurityBadge';
 import { OWASPChart } from '@/components/OWASPChart';
 import { VulnerabilityTable } from '@/components/VulnerabilityTable';
+import { useViewMode } from '@/contexts/ViewModeContext';
 
 interface SecurityOverviewProps {
   analysis: AnalysisRecord | null;
@@ -11,6 +12,7 @@ interface SecurityOverviewProps {
 }
 
 export function SecurityOverview({ analysis, nodes }: SecurityOverviewProps) {
+  const { mode } = useViewMode();
   const securitySummary = analysis?.security_summary;
   const findings = nodes.flatMap((node) => node.security_findings ?? [] as SecurityFinding[]);
   const topModules = [...nodes]
@@ -23,6 +25,17 @@ export function SecurityOverview({ analysis, nodes }: SecurityOverviewProps) {
         <Metric label="Repo Security Score" value={analysis?.repo_security_score ?? securitySummary?.score ?? 0} accent />
         <Metric label="Critical Vulns" value={analysis?.critical_vulnerabilities ?? securitySummary?.critical ?? 0} danger />
         <Metric label="Collapse Status" value={analysis?.security_collapse ? 'Collapsed' : 'Stable'} danger={Boolean(analysis?.security_collapse)} />
+        {mode === 'business' ? (
+          <>
+            <Metric label="Trust Score" value={analysis?.trustScore ?? 0} />
+            <Metric label="Deployment Confidence" value={analysis?.deploymentConfidence ?? 0} />
+          </>
+        ) : (
+          <>
+            <Metric label="Exploitability" value={analysis?.repo_exploitability_score ?? 0} />
+            <Metric label="Collapse Score" value={analysis?.collapse_score ?? 0} danger={Boolean((analysis?.collapse_score ?? 0) >= 70)} />
+          </>
+        )}
         <Metric label="Total Findings" value={securitySummary?.totalVulnerabilities ?? findings.length} />
       </div>
 

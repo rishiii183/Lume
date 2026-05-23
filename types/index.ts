@@ -76,6 +76,70 @@ export interface SecurityAnalysisResult {
   criticalVulnerabilities: number;
 }
 
+export interface AttackPath {
+  sourceNode: string;
+  targetNode: string;
+  path: string[];
+  propagationRisk: number;
+  attackComplexity: number;
+  privilegeEscalationPotential: number;
+  exposedApis: string[];
+  exploitabilityScore: number;
+}
+
+export interface AttackGraphResult {
+  paths: AttackPath[];
+  nodes: string[];
+  links: GraphLink[];
+  propagationRisk: number;
+  criticalPaths: AttackPath[];
+}
+
+export interface CollapsePredictionResult {
+  collapseProbability: number;
+  collapseScore: number;
+  predictedTimeline: string;
+  criticalModules: string[];
+  instabilityDrivers: string[];
+  recommendedInterventions: string[];
+  riskTrend: { label: string; value: number }[];
+}
+
+export interface PRRiskResult {
+  mergeRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  riskScore: number;
+  securityRegression: boolean;
+  newVulnerabilities: SecurityFinding[];
+  architectureImpact: string[];
+  unstableChanges: string[];
+  criticalFilesTouched: string[];
+  recommendations: string[];
+}
+
+export interface ExploitabilityResult {
+  repoExploitabilityScore: number;
+  nodeExploitability: Record<string, {
+    exploitabilityScore: number;
+    publicExposure: boolean;
+    attackSurfaceScore: number;
+    propagationRisk: number;
+    reachableSystems: string[];
+    attackPaths: string[];
+  }>;
+  reachableAttackChains: number;
+  publicExposureFiles: string[];
+}
+
+export interface AutoFixResult {
+  summary: string;
+  risk: string;
+  beforeCode: string;
+  afterCode: string;
+  patch: string;
+  confidence: number;
+  estimatedRiskReduction: number;
+}
+
 export interface AnalysisRecord {
   id: string;
   user_id: string | null;
@@ -95,6 +159,20 @@ export interface AnalysisRecord {
   security_collapse: boolean;
   critical_vulnerabilities: number;
   repo_security_score: number;
+  collapse_score: number;
+  collapse_prediction: CollapsePredictionResult | null;
+  attack_graph: AttackGraphResult | null;
+  repo_exploitability_score: number;
+  high_risk_attack_paths: AttackPath[] | null;
+  executiveSummary?: string;
+  deploymentConfidence?: number;
+  trustScore?: number;
+  deploymentRecommendation?: 'SAFE TO SHIP' | 'NEEDS REVIEW' | 'HIGH RISK' | 'DEPLOYMENT NOT RECOMMENDED';
+  businessRisks?: string[];
+  operationalRisks?: string[];
+  customerImpact?: string[];
+  ignoreConsequences?: string[];
+  consequenceForecast?: ConsequencePredictionResult | null;
   created_at: string;
   updated_at: string;
 }
@@ -113,6 +191,20 @@ export interface DebtNode {
   has_critical_security: boolean;
   vulnerability_count: number;
   security_risk_level: VulnerabilitySeverity | 'none';
+  exploitability_score: number;
+  collapse_risk: number;
+  autofix_available: boolean;
+  attack_surface_score: number;
+  propagation_risk: number;
+  public_exposure: boolean;
+  critical_attack_paths: AttackPath[];
+  fix_patch: string | null;
+  fix_confidence: number;
+  merge_risk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | null;
+  businessImpact?: string;
+  deploymentUrgency?: string;
+  customerImpact?: string;
+  trustImpact?: number;
   complexity: number;
   duplication_score: number;
   blast_radius: number;
@@ -167,6 +259,16 @@ export interface RoadmapItem {
   blastRadius: number;
   priority: number;
   securityPriority: number;
+  businessPriority: number;
+  exploitabilityScore: number;
+  collapseRisk: number;
+  publicExposure: boolean;
+  autofixAvailable: boolean;
+  mergeRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | null;
+  businessImpact: string;
+  deploymentUrgency: string;
+  customerImpact: string;
+  trustImpact: number;
   explanation: string | null;
 }
 
@@ -181,6 +283,55 @@ export interface FilterState {
   securityScoreThreshold: number;
   secretLeaksOnly: boolean;
   injectionOnly: boolean;
+  exploitableOnly: boolean;
+  collapseCriticalOnly: boolean;
+  attackPathOnly: boolean;
+  publicExposureOnly: boolean;
+  autofixAvailableOnly: boolean;
+}
+
+export type ViewMode = 'technical' | 'business';
+
+export interface BusinessTranslationResult {
+  executiveSummary: string;
+  businessImpact: string;
+  customerImpact: string;
+  operationalRisk: string;
+  financialRisk: string;
+  urgency: string;
+  recommendedAction: string;
+  impactTypes: string[];
+}
+
+export interface ConsequencePredictionResult {
+  shortTermImpact: string;
+  longTermImpact: string;
+  productionRisk: string;
+  customerRisk: string;
+  scalabilityImpact: string;
+  estimatedSeverity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  likelyFailureScenarios: string[];
+}
+
+export interface DeploymentConfidenceResult {
+  deploymentConfidence: number;
+  deploymentRecommendation: 'SAFE TO SHIP' | 'NEEDS REVIEW' | 'HIGH RISK' | 'DEPLOYMENT NOT RECOMMENDED';
+  productionReadiness: string;
+  customerRiskLevel: string;
+  operationalStability: string;
+  securityExposure: string;
+  architectureHealth: string;
+  factors: string[];
+}
+
+export interface TrustScoreResult {
+  trustScore: number;
+  deploymentConfidence: number;
+  operationalStability: number;
+  securityExposure: number;
+  architectureHealth: number;
+  recommendation: 'SAFE TO SHIP' | 'NEEDS REVIEW' | 'HIGH RISK' | 'DEPLOYMENT NOT RECOMMENDED';
+  reasons: string[];
 }
 
 export interface ParsedFile {

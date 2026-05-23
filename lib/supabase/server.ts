@@ -49,6 +49,11 @@ export async function updateAnalysisProgress(
     security_collapse: boolean;
     critical_vulnerabilities: number;
     repo_security_score: number;
+    collapse_score: number;
+    collapse_prediction: AnalysisRecord['collapse_prediction'];
+    attack_graph: AnalysisRecord['attack_graph'];
+    repo_exploitability_score: number;
+    high_risk_attack_paths: AnalysisRecord['high_risk_attack_paths'];
   }>
 ) {
   try {
@@ -72,6 +77,11 @@ export async function updateAnalysisProgress(
       delete fallbackUpdates.security_collapse;
       delete fallbackUpdates.critical_vulnerabilities;
       delete fallbackUpdates.repo_security_score;
+      delete fallbackUpdates.collapse_score;
+      delete fallbackUpdates.collapse_prediction;
+      delete fallbackUpdates.attack_graph;
+      delete fallbackUpdates.repo_exploitability_score;
+      delete fallbackUpdates.high_risk_attack_paths;
 
       const fallback = await supabase
         .from('analyses')
@@ -125,7 +135,7 @@ export async function insertDebtNodes(
       throw new Error(`Failed to insert nodes: ${errorMessage}`);
     }
 
-    const fallbackBatch = batch.map(({ security_score, security_weighted_score, has_critical_security, vulnerability_count, security_risk_level, owasp_categories, cwe_categories, security_findings, ...rest }) => rest as Omit<DebtNode, 'id' | 'security_score' | 'security_weighted_score' | 'has_critical_security' | 'vulnerability_count' | 'security_risk_level' | 'owasp_categories' | 'cwe_categories' | 'security_findings'>);
+    const fallbackBatch = batch.map(({ security_score, security_weighted_score, has_critical_security, vulnerability_count, security_risk_level, owasp_categories, cwe_categories, security_findings, exploitability_score, collapse_risk, autofix_available, attack_surface_score, propagation_risk, public_exposure, critical_attack_paths, fix_patch, fix_confidence, merge_risk, ...rest }) => rest as Omit<DebtNode, 'id' | 'security_score' | 'security_weighted_score' | 'has_critical_security' | 'vulnerability_count' | 'security_risk_level' | 'owasp_categories' | 'cwe_categories' | 'security_findings' | 'exploitability_score' | 'collapse_risk' | 'autofix_available' | 'attack_surface_score' | 'propagation_risk' | 'public_exposure' | 'critical_attack_paths' | 'fix_patch' | 'fix_confidence' | 'merge_risk'>);
     const fallbackInsert = await supabase.from('debt_nodes').insert(fallbackBatch);
     if (fallbackInsert.error) {
       throw new Error(`Failed to insert nodes: ${fallbackInsert.error.message}`);
