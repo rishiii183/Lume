@@ -24,7 +24,10 @@ export default function AuthPage() {
     const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/auth/callback`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
-      options: { redirectTo },
+      options: {
+        redirectTo,
+        scopes: 'repo',
+      },
     });
     if (error) {
       alert(error.message);

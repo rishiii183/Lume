@@ -8,9 +8,19 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createServerSupabase();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error && data?.session) {
+      const response = NextResponse.redirect(`${origin}${next}`);
+      if (data.session.provider_token) {
+        response.cookies.set('sb-provider-token', data.session.provider_token, {
+          path: '/',
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7 // 1 week
+        });
+      }
+      return response;
     }
   }
 

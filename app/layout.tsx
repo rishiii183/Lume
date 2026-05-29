@@ -5,16 +5,27 @@ import './globals.css';
 import { ViewModeProvider } from '@/contexts/ViewModeContext';
 import { RiskTranslationToggle } from '@/components/RiskTranslationToggle';
 
+import { createServerSupabase } from '@/lib/supabase/server';
+
 export const metadata: Metadata = {
   title: 'DebtRadar — AI Software Trust Intelligence',
   description: 'AI-powered software trust, risk, and deployment intelligence for technical and non-technical teams',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  let user = null;
+  try {
+    const supabase = await createServerSupabase();
+    const { data: { session } } = await supabase.auth.getSession();
+    user = session?.user || null;
+  } catch (err) {
+    console.warn('[Layout] Failed to retrieve session:', err);
+  }
+
   return (
     <html lang="en">
       <body className="min-h-screen gradient-mesh">
@@ -29,6 +40,31 @@ export default function RootLayout({
               </Link>
               <div className="flex items-center gap-3 sm:gap-4">
                 <RiskTranslationToggle />
+                
+                {user ? (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-slate-500 font-semibold hidden md:inline max-w-[150px] truncate">
+                      {user.email}
+                    </span>
+                    <form action="/auth/signout" method="POST" className="m-0">
+                      <button
+                        type="submit"
+                        className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 px-3 py-1.5 rounded-lg transition-all border border-rose-200/50"
+                      >
+                        Sign Out
+                      </button>
+                    </form>
+                  </div>
+                ) : (
+                  <Link
+                    href="/auth"
+                    className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg transition-all shadow-sm"
+                  >
+                    <Github className="w-3.5 h-3.5" />
+                    <span>Sign In</span>
+                  </Link>
+                )}
+
                 <a
                   href="https://github.com"
                   target="_blank"
