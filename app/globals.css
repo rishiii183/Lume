@@ -173,19 +173,15 @@ body {
   }
 }
 
-.graph-tooltip {
-  position: absolute;
-  pointer-events: none;
-  z-index: 9999;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(176, 123, 79, 0.18);
-  padding: 16px;
-  border-radius: 20px;
-  box-shadow: 0 20px 40px -15px rgba(61, 47, 34, 0.12), 0 1px 3px rgba(139, 115, 85, 0.05);
-  font-family: inherit;
-  font-size: 12px;
-  color: #334155;
-  min-width: 240px;
-  transition: opacity 0.15s ease-out;
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
 }

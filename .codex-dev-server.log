@@ -1,0 +1,27 @@
+
+> debtradar@1.0.0 dev
+> next dev -p 3001
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3001
+
+ ✓ Starting...
+ ✓ Ready in 5.8s
+ ○ Compiling / ...
+ ✓ Compiled / in 7.5s (552 modules)
+ GET / 200 in 8106ms
+ ✓ Compiled in 258ms (278 modules)
+ ✓ Compiled in 4.9s (552 modules)
+ ✓ Compiled in 2.1s (565 modules)
+ ✓ Compiled in 1530ms (556 modules)
+ ✓ Compiled in 701ms (556 modules)
+ ✓ Compiled in 435ms (556 modules)
+ ✓ Compiled in 652ms (556 modules)
+ ✓ Compiled in 731ms (556 modules)
+ ✓ Compiled in 763ms (556 modules)
+ ✓ Compiled in 328ms (556 modules)
+ ✓ Compiled in 363ms (556 modules)
+ ✓ Compiled in 1696ms (556 modules)
+ ✓ Compiled in 229ms (281 modules)
+ ✓ Compiled in 365ms (556 modules)
+ ✓ Compiled in 1049ms (556 modules)

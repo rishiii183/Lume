@@ -109,17 +109,6 @@ export default function RoadmapPage() {
         </div>
         <div className="lg:col-span-3">
           {mode === 'business' && (
-            <div className="mb-6">
-              <ExecutiveCommandCenter
-                analysis={analysis}
-                trust={trustScore}
-                deploymentConfidence={deploymentConfidence}
-                businessTranslations={businessTranslations}
-                consequenceForecast={consequenceForecast}
-              />
-            </div>
-          )}
-          {mode === 'business' && (
             <div className="grid xl:grid-cols-[1.1fr_0.9fr] gap-6 mb-6">
               <ExecutiveRiskCard analysis={analysis} />
               <TrustScoreCard trust={trustScore} />

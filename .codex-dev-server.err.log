@@ -1,0 +1,43 @@
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Users\ruma2\Downloads\Lume-main\Lume-main\.next\cache\webpack\server-development\1.pack.gz_' -> 'C:\Users\ruma2\Downloads\Lume-main\Lume-main\.next\cache\webpack\server-development\1.pack.gz'
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Users\ruma2\Downloads\Lume-main\Lume-main\.next\cache\webpack\client-development\1.pack.gz_' -> 'C:\Users\ruma2\Downloads\Lume-main\Lume-main\.next\cache\webpack\client-development\1.pack.gz'
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Users\ruma2\Downloads\Lume-main\Lume-main\.next\cache\webpack\server-development\0.pack.gz_' -> 'C:\Users\ruma2\Downloads\Lume-main\Lume-main\.next\cache\webpack\server-development\0.pack.gz'
+ ⨯ ./app/layout.tsx
+Error: 
+  [31mx[0m Unexpected token `html`. Expected jsx identifier
+    ,-[[36;1;4mC:\Users\ruma2\Downloads\Lume-main\Lume-main\app\layout.tsx[0m:19:1]
+ [2m19[0m |   children: React.ReactNode;
+ [2m20[0m | }) {
+ [2m21[0m |   return (
+ [2m22[0m |     <html lang="en">
+    : [31;1m     ^^^^[0m
+ [2m23[0m |       <body className={`min-h-screen gradient-mesh ${inter.className}`}>
+ [2m24[0m |         <ViewModeProvider>
+ [2m25[0m |           <div className="px-4 pt-4 sm:pt-6 sticky top-0 z-50">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/layout.tsx
+ ⨯ ./app/layout.tsx
+Error: 
+  [31mx[0m Unexpected token `html`. Expected jsx identifier
+    ,-[[36;1;4mC:\Users\ruma2\Downloads\Lume-main\Lume-main\app\layout.tsx[0m:19:1]
+ [2m19[0m |   children: React.ReactNode;
+ [2m20[0m | }) {
+ [2m21[0m |   return (
+ [2m22[0m |     <html lang="en">
+    : [31;1m     ^^^^[0m
+ [2m23[0m |       <body className={`min-h-screen gradient-mesh ${inter.className}`}>
+ [2m24[0m |         <ViewModeProvider>
+ [2m25[0m |           <div className="px-4 pt-4 sm:pt-6 sticky top-0 z-50">
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/layout.tsx
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Users\ruma2\Downloads\Lume-main\Lume-main\.next\cache\webpack\client-development\1.pack.gz_' -> 'C:\Users\ruma2\Downloads\Lume-main\Lume-main\.next\cache\webpack\client-development\1.pack.gz'
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Users\ruma2\Downloads\Lume-main\Lume-main\.next\cache\webpack\server-development\0.pack.gz_' -> 'C:\Users\ruma2\Downloads\Lume-main\Lume-main\.next\cache\webpack\server-development\0.pack.gz'

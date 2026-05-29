@@ -17,17 +17,14 @@ import { buildBusinessImpactFromNode } from '@/lib/business-intelligence/busines
 import { predictConsequences } from '@/lib/business-intelligence/consequence-engine';
 import { NonTechnicalExplanation } from '@/components/NonTechnicalExplanation';
 import { ConsequenceForecast } from '@/components/ConsequenceForecast';
-import { CreatePRButton } from './CreatePRButton';
 
 interface NodeSidebarProps {
   node: DebtNode | null;
   analysisId: string;
-  repoOwner?: string;
-  repoName?: string;
   onClose?: () => void;
 }
 
-export function NodeSidebar({ node, analysisId, repoOwner, repoName, onClose }: NodeSidebarProps) {
+export function NodeSidebar({ node, analysisId, onClose }: NodeSidebarProps) {
   const { mode } = useViewMode();
   const [explaining, setExplaining] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
@@ -130,13 +127,10 @@ export function NodeSidebar({ node, analysisId, repoOwner, repoName, onClose }: 
       )}
 
       <div>
-        <h3 className="font-black text-2xl text-slate-800 tracking-tight leading-tight">{node.symbol_name}</h3>
-        <div className="flex items-center gap-1.5 mt-2.5 overflow-hidden bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 font-mono text-[10px] text-slate-300 shadow-inner">
-          <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
-          <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 mr-1.5" />
-          <span className="truncate select-all select-none opacity-85">{node.file_path}</span>
-        </div>
+        <h3 className="font-extrabold text-xl text-slate-800 tracking-tight leading-tight">{node.symbol_name}</h3>
+        <p className="text-xs text-slate-500 font-mono font-medium mt-1.5 break-all bg-[#f5efe7]/40 px-2 py-1 rounded border border-[rgba(176,123,79,0.08)]">
+          {truncate(node.file_path, 60)}
+        </p>
       </div>
 
       <div>
@@ -147,16 +141,6 @@ export function NodeSidebar({ node, analysisId, repoOwner, repoName, onClose }: 
         >
           {formatScore(node.debt_score)}
           <span className="text-sm text-slate-400 font-bold ml-1">/ 100</span>
-        </div>
-      </div>
-
-      {/* Comparative Debt Metrics breakdown bar */}
-      <div className="space-y-3 bg-[#fdfbf7]/60 border border-[rgba(176,123,79,0.12)] p-4.5 rounded-2xl shadow-sm">
-        <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Debt Breakdown</h4>
-        <div className="space-y-3">
-          <ProgressBarMini label="Complexity" value={Math.min(100, node.complexity * 3.5)} displayVal={node.complexity} color="bg-[#b07b4f]" />
-          <ProgressBarMini label="Code Duplication" value={node.duplication_score * 100} displayVal={`${(node.duplication_score * 100).toFixed(0)}%`} color="bg-amber-500" />
-          <ProgressBarMini label="Security Exposure" value={node.security_score} displayVal={`${node.security_score.toFixed(0)}/100`} color="bg-rose-500" />
         </div>
       </div>
 
@@ -213,10 +197,6 @@ export function NodeSidebar({ node, analysisId, repoOwner, repoName, onClose }: 
         <span>{explainButtonLabel}</span>
       </button>
 
-      {repoOwner && repoName && (
-        <CreatePRButton node={node} repoOwner={repoOwner} repoName={repoName} />
-      )}
-
       {error && (
         <div className="bg-[#c44d4d]/10 border border-[#c44d4d]/20 rounded-xl p-4 text-sm text-[#c44d4d] shadow-sm">
           <p className="font-bold mb-1">AI Explanation Failed</p>
@@ -267,30 +247,6 @@ function Metric({
       <Icon className="w-4 h-4 text-[#b07b4f] mb-1.5" />
       <p className="text-xs text-slate-400 font-bold">{label}</p>
       <p className="text-sm font-extrabold text-slate-800 capitalize mt-0.5">{value}</p>
-    </div>
-  );
-}
-
-function ProgressBarMini({
-  label,
-  value,
-  displayVal,
-  color,
-}: {
-  label: string;
-  value: number;
-  displayVal: string | number;
-  color: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-[10px] font-bold text-slate-500">
-        <span>{label}</span>
-        <span className="font-mono text-slate-700">{displayVal}</span>
-      </div>
-      <div className="h-1.5 w-full bg-[#efe8de] rounded-full overflow-hidden border border-[rgba(176,123,79,0.04)] shadow-inner">
-        <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
-      </div>
     </div>
   );
 }
