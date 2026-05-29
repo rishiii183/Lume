@@ -14,7 +14,6 @@ import { TrustScoreCard } from '@/components/TrustScoreCard';
 import { DeploymentConfidenceCard } from '@/components/DeploymentConfidenceCard';
 import { BusinessImpactPanel } from '@/components/BusinessImpactPanel';
 import { ConsequenceForecast } from '@/components/ConsequenceForecast';
-import { ExecutiveCommandCenter } from '@/components/business/ExecutiveCommandCenter';
 import type { TrustScoreResult, DeploymentConfidenceResult, ConsequencePredictionResult } from '@/types';
 import { useViewMode } from '@/contexts/ViewModeContext';
 import { buildBusinessImpactFromNode } from '@/lib/business-intelligence/business-impact';
@@ -104,17 +103,6 @@ export default function RoadmapPage() {
           )}
         </div>
         <div className="lg:col-span-3">
-          {mode === 'business' && (
-            <div className="mb-6">
-              <ExecutiveCommandCenter
-                analysis={analysis}
-                trust={trustScore}
-                deploymentConfidence={deploymentConfidence}
-                businessTranslations={businessTranslations}
-                consequenceForecast={consequenceForecast}
-              />
-            </div>
-          )}
           {mode === 'business' && (
             <div className="grid xl:grid-cols-[1.1fr_0.9fr] gap-6 mb-6">
               <ExecutiveRiskCard analysis={analysis} />

@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Map, Download, AlertCircle, Radar, Github, Sparkles, FileCode, Activity, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { Map, Download, AlertCircle, Radar, Github, Sparkles } from 'lucide-react';
 import { HeatMap } from '@/components/HeatMap';
 import { NodeSidebar } from '@/components/NodeSidebar';
 import { FilterBar } from '@/components/FilterBar';
@@ -21,7 +21,6 @@ import { TrustScoreCard } from '@/components/TrustScoreCard';
 import { DeploymentConfidenceCard } from '@/components/DeploymentConfidenceCard';
 import { BusinessImpactPanel } from '@/components/BusinessImpactPanel';
 import { ConsequenceForecast } from '@/components/ConsequenceForecast';
-import { ExecutiveCommandCenter } from '@/components/business/ExecutiveCommandCenter';
 import { useViewMode } from '@/contexts/ViewModeContext';
 import { buildBusinessImpactFromNode } from '@/lib/business-intelligence/business-impact';
 import type {
@@ -279,12 +278,20 @@ function AnalyzeContent() {
 
   if (isLoading) {
     return (
-      <div className="max-w-xl mx-auto px-4 py-24 flex items-center justify-center min-h-[80vh]">
+      <div className="max-w-lg mx-auto px-4 py-12">
         <LoadingState
           progress={analysis?.progress ?? 0}
           message={analysis?.progress_message}
           title={`Analyzing ${analysis?.repo_owner ?? ''}/${analysis?.repo_name ?? 'repository'}`}
         />
+        {analysis && (
+          <div className="mt-6">
+            <ProgressBar
+              progress={analysis.progress}
+              message={analysis.progress_message}
+            />
+          </div>
+        )}
       </div>
     );
   }
@@ -349,50 +356,8 @@ function AnalyzeContent() {
           </div>
         </div>
 
-        {/* Animated Overview Stats Container */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <OverviewMetricCard
-            label="Total Files"
-            value={nodes.length}
-            subtext="Codebase modules parsed"
-            icon={FileCode}
-            color="text-[#b07b4f]"
-          />
-          <OverviewMetricCard
-            label="Avg Debt Score"
-            value={(analysis.avg_debt_score || 0).toFixed(1)}
-            subtext="Rating: B- Good"
-            icon={Activity}
-            color="text-amber-600"
-          />
-          <OverviewMetricCard
-            label="Total Vulnerabilities"
-            value={analysis.security_summary?.totalVulnerabilities ?? securityFindings.length}
-            subtext={`${analysis.critical_vulnerabilities ?? 0} critical findings`}
-            icon={ShieldAlert}
-            color="text-rose-600"
-          />
-          <OverviewMetricCard
-            label="Collapse Risk"
-            value={`${Math.round(analysis.collapse_score || 0)}%`}
-            subtext="Architectural instability"
-            icon={AlertTriangle}
-            color="text-[#8c6239]"
-          />
-        </div>
-
         {collapseBanner && (
           <SecurityCollapseBanner collapse={collapseBanner} criticalFindings={analysis.critical_vulnerabilities} />
-        )}
-
-        {mode === 'business' && (
-          <ExecutiveCommandCenter
-            analysis={analysis}
-            trust={trustScore}
-            deploymentConfidence={deploymentConfidence}
-            businessTranslations={businessTranslations}
-            consequenceForecast={consequenceForecast}
-          />
         )}
 
         {mode === 'business' && (
@@ -437,9 +402,9 @@ function AnalyzeContent() {
                   <ExploitabilityBadge score={selected.exploitability_score} publicExposure={selected.public_exposure} />
                 </div>
                 <div className="grid gap-3 md:grid-cols-4 text-sm text-[#6b5b4d] font-bold">
-                  <div className="rounded-2xl bg-[#efe8de]/70 border border-[rgba(176,122,77,0.06)] p-3">Collapse risk <span className="font-extrabold text-[#9a6a43]">{Math.round(selected.collapse_risk || 0)}</span></div>
-                  <div className="rounded-2xl bg-[#efe8de]/70 border border-[rgba(176,122,77,0.06)] p-3">Attack surface <span className="font-extrabold text-[#9a6a43]">{Math.round(selected.attack_surface_score || 0)}</span></div>
-                  <div className="rounded-2xl bg-[#efe8de]/70 border border-[rgba(176,122,77,0.06)] p-3">Propagation <span className="font-extrabold text-[#9a6a43]">{Math.round(selected.propagation_risk || 0)}</span></div>
+                  <div className="rounded-2xl bg-[#efe8de]/70 border border-[rgba(176,122,77,0.06)] p-3">Collapse risk <span className="font-extrabold text-[#9a6a43]">{Math.round(selected.collapse_risk)}</span></div>
+                  <div className="rounded-2xl bg-[#efe8de]/70 border border-[rgba(176,122,77,0.06)] p-3">Attack surface <span className="font-extrabold text-[#9a6a43]">{Math.round(selected.attack_surface_score)}</span></div>
+                  <div className="rounded-2xl bg-[#efe8de]/70 border border-[rgba(176,122,77,0.06)] p-3">Propagation <span className="font-extrabold text-[#9a6a43]">{Math.round(selected.propagation_risk)}</span></div>
                   <div className="rounded-2xl bg-[#efe8de]/70 border border-[rgba(176,122,77,0.06)] p-3">Autofix <span className="font-extrabold text-[#9a6a43]">{selected.autofix_available ? 'available' : 'pending'}</span></div>
                 </div>
                 <button
@@ -472,8 +437,6 @@ function AnalyzeContent() {
               <NodeSidebar
                 node={selected}
                 analysisId={analysisId}
-                repoOwner={analysis?.repo_owner}
-                repoName={analysis?.repo_name}
                 onClose={() => setSelected(null)}
               />
             </div>
@@ -492,12 +455,7 @@ function AnalyzeContent() {
               availableCweCategories={availableCweCategories}
             />
             <div className="hidden lg:block flex-1 min-h-[200px]">
-              <NodeSidebar
-                node={selected}
-                analysisId={analysisId}
-                repoOwner={analysis?.repo_owner}
-                repoName={analysis?.repo_name}
-              />
+              <NodeSidebar node={selected} analysisId={analysisId} />
             </div>
           </div>
         </div>
@@ -511,32 +469,5 @@ export default function AnalyzeClient() {
     <Suspense fallback={<LoadingState title="Loading analysis" />}>
       <AnalyzeContent />
     </Suspense>
-  );
-}
-
-function OverviewMetricCard({
-  label,
-  value,
-  subtext,
-  icon: Icon,
-  color,
-}: {
-  label: string;
-  value: string | number;
-  subtext: string;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-}) {
-  return (
-    <div className="glass-panel rounded-3xl p-5 border border-[rgba(176,123,79,0.12)] bg-gradient-to-br from-white/60 to-[#f5efe7]/40 shadow-sm hover-lift flex items-center justify-between gap-4 transition-all duration-300">
-      <div className="space-y-1 min-w-0">
-        <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{label}</p>
-        <p className="text-2xl font-black text-slate-800 truncate">{value}</p>
-        <p className="text-xs text-slate-500 font-semibold truncate">{subtext}</p>
-      </div>
-      <div className={`p-3 rounded-2xl bg-[#efe8de]/50 border border-[rgba(176,123,79,0.06)] shadow-inner shrink-0 ${color}`}>
-        <Icon className="w-5 h-5" />
-      </div>
-    </div>
   );
 }
