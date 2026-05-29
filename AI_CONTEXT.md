@@ -53,7 +53,8 @@ Features:
 * The executive summary shown in the new command center is capped to two sentences for presentation use.
 * Phase 2 adds a deterministic financial-impact calculator and risk timeline on top of the same existing analysis payload with no schema or API changes.
 
-## Created Files
+## Created Files  
+
 
 * `lib/business-intelligence/software-credit-rating.ts`
 * `lib/business-intelligence/deployment-gate.ts`
