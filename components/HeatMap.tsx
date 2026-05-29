@@ -66,6 +66,14 @@ export function HeatMap({
 
     svgRef.current = svg.node();
 
+    // Ensure custom HTML tooltip container exists
+    let tooltip = d3.select(container).select<HTMLDivElement>('.graph-tooltip');
+    if (tooltip.empty()) {
+      tooltip = d3.select(container)
+        .append('div')
+        .attr('class', 'graph-tooltip opacity-0 hidden');
+    }
+
     const g = svg.append('g');
 
     // Add glowing filter definitions for the nodes (Requirement 5)
@@ -250,49 +258,107 @@ export function HeatMap({
         onSelect(full);
       })
       .on('mouseover', function (event, d) {
+        // Hover zoom
         d3.select(this)
           .transition()
-          .duration(200)
-          .attr('r', radius(d, selectedId) * 1.2)
+          .duration(150)
+          .attr('r', radius(d, selectedId) * 1.25)
           .attr('opacity', 1)
-          .attr('stroke-width', 3.5) // Bold width on hover
+          .attr('stroke-width', 4)
           .attr('filter', d.has_critical_security ? 'url(#security-glow)' : 'url(#node-glow)');
+
+        // Connection Highlighting (Focus + Context)
+        const connectedNodeIds = new Set<string>();
+        connectedNodeIds.add(d.id);
+        simLinks.forEach((l) => {
+          const sId = typeof l.source === 'object' ? (l.source as SimNode).id : l.source;
+          const tId = typeof l.target === 'object' ? (l.target as SimNode).id : l.target;
+          if (sId === d.id) connectedNodeIds.add(tId);
+          if (tId === d.id) connectedNodeIds.add(sId);
+        });
+
+        // Dim non-connected nodes and links
+        node.transition().duration(150).style('opacity', (n) => connectedNodeIds.has(n.id) ? 1 : 0.15);
+        link.transition().duration(150)
+          .style('opacity', (l) => {
+            const sId = typeof l.source === 'object' ? (l.source as SimNode).id : l.source;
+            const tId = typeof l.target === 'object' ? (l.target as SimNode).id : l.target;
+            return (sId === d.id || tId === d.id) ? 1 : 0.12;
+          })
+          .attr('stroke', (l) => {
+            const sId = typeof l.source === 'object' ? (l.source as SimNode).id : l.source;
+            const tId = typeof l.target === 'object' ? (l.target as SimNode).id : l.target;
+            return (sId === d.id || tId === d.id) ? '#b07b4f' : 'rgba(140, 98, 57, 0.48)';
+          });
+
+        // Populate and position Custom Tooltip
+        tooltip.style('display', 'block')
+          .transition()
+          .duration(100)
+          .style('opacity', 1);
+
+        const topOwasp = d.owasp_categories?.[0] ?? 'None';
+        const riskBadgeColor = d.has_critical_security 
+          ? 'bg-rose-100 text-rose-800 border-rose-200' 
+          : 'bg-[#efe8de]/50 text-[#6b5b4d] border-[rgba(176,123,79,0.12)]';
+
+        const contentHtml = `
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <span class="font-extrabold text-slate-800 truncate max-w-[150px] text-sm">${d.symbol_name}</span>
+              <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${riskBadgeColor}">
+                ${(d.security_risk_level || 'Safe').toUpperCase()}
+              </span>
+            </div>
+            <p class="text-[10px] text-slate-400 font-mono truncate max-w-[220px]">${d.file_path}</p>
+            
+            <div class="border-t border-[rgba(176,123,79,0.08)] my-2 pt-2 space-y-1.5">
+              <div class="flex justify-between items-center text-[10px] font-bold text-slate-500">
+                <span>Technical Debt Score</span>
+                <span class="font-mono text-[#b07b4f] font-extrabold">${d.debt_score.toFixed(1)}/100</span>
+              </div>
+              <div class="h-1.5 w-full bg-[#f5efe7] rounded-full overflow-hidden border border-[rgba(176,123,79,0.06)] shadow-inner">
+                <div class="h-full bg-gradient-to-r from-[#b07b4f] to-[#8c6239] rounded-full" style="width: ${d.debt_score}%"></div>
+              </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] font-bold text-slate-500 pt-1">
+              <div>Vulnerabilities: <span class="text-slate-800 font-extrabold font-mono">${d.vulnerability_count}</span></div>
+              <div>Exploitability: <span class="text-slate-800 font-extrabold font-mono">${Math.round(d.exploitability_score)}%</span></div>
+              <div class="col-span-2 text-[9px] text-slate-400 font-semibold truncate">Top Category: <span class="text-[#b07b4f] font-bold">${topOwasp}</span></div>
+            </div>
+          </div>
+        `;
+        tooltip.html(contentHtml);
+      })
+      .on('mousemove', function (event) {
+        const [x, y] = d3.pointer(event, container);
+        tooltip
+          .style('left', (x + 15) + 'px')
+          .style('top', (y - 15) + 'px');
       })
       .on('mouseout', function (event, d) {
         const isSelected = d.id === selectedId;
         d3.select(this)
           .transition()
-          .duration(200)
+          .duration(150)
           .attr('r', radius(d, selectedId))
           .attr('opacity', isSelected ? 1 : 0.95)
-          .attr('stroke-width', d.has_critical_security ? 3.5 : isSelected ? 4.5 : 2.25) // Revert to bold stroke width
+          .attr('stroke-width', d.has_critical_security ? 3.5 : isSelected ? 4.5 : 2.25)
           .attr('filter', d.has_critical_security ? 'url(#security-glow)' : isSelected ? 'url(#node-glow)' : 'url(#node-shadow)');
+
+        // Revert other nodes and links opacity
+        node.transition().duration(150).style('opacity', (n) => n.id === selectedId ? 1 : 0.95);
+        link.transition().duration(150)
+          .style('opacity', 0.95)
+          .attr('stroke', 'rgba(140, 98, 57, 0.48)');
+
+        // Hide custom tooltip
+        tooltip.transition()
+          .duration(100)
+          .style('opacity', 0)
+          .on('end', () => tooltip.style('display', 'none'));
       });
-
-    node.append('title').text((d) => {
-      const topOwasp = d.owasp_categories?.[0] ?? 'none';
-      const debtScore = Number.isFinite(d.debt_score) ? d.debt_score : 0;
-      const securityScore = Number.isFinite(d.security_score) ? d.security_score : 0;
-      const vulnerabilityCount = Number.isFinite(d.vulnerability_count) ? d.vulnerability_count : 0;
-      const riskLevel = d.security_risk_level ?? 'none';
-      if (mode === 'business') {
-        return [
-          businessLabel(d),
-          `Customer impact: ${d.has_critical_security ? 'High' : 'Moderate'}`,
-          `Deployment danger: ${d.security_score >= 75 ? 'High' : 'Moderate'}`,
-          'This issue could affect important parts of the application.',
-        ].join('\n');
-      }
-
-      return [
-        d.symbol_name,
-        `Debt score: ${debtScore.toFixed(1)}`,
-        `Security score: ${securityScore.toFixed(1)}`,
-        `Critical vulnerabilities: ${vulnerabilityCount}`,
-        `Top OWASP: ${topOwasp}`,
-        `Risk level: ${riskLevel}`,
-      ].join('\n');
-    });
 
     node.call(dragBehavior);
 
@@ -337,29 +403,29 @@ export function HeatMap({
 
     simulation.on('tick', () => {
       link
-        .attr('x1', (d) => getLinkNode(d.source).x ?? 0)
-        .attr('y1', (d) => getLinkNode(d.source).y ?? 0)
-        .attr('x2', (d) => getLinkNode(d.target).x ?? 0)
-        .attr('y2', (d) => getLinkNode(d.target).y ?? 0);
+        .attr('x1', (d) => getLinkNode(d.source).x || 0)
+        .attr('y1', (d) => getLinkNode(d.source).y || 0)
+        .attr('x2', (d) => getLinkNode(d.target).x || 0)
+        .attr('y2', (d) => getLinkNode(d.target).y || 0);
 
-      node.attr('cx', (d) => d.x ?? 0).attr('cy', (d) => d.y ?? 0);
-      label.attr('x', (d) => d.x ?? 0).attr('y', (d) => d.y ?? 0);
+      node.attr('cx', (d) => d.x || 0).attr('cy', (d) => d.y || 0);
+      label.attr('x', (d) => d.x || 0).attr('y', (d) => d.y || 0);
 
       criticalRing
-        .attr('cx', (d) => d.x ?? 0)
-        .attr('cy', (d) => d.y ?? 0)
+        .attr('cx', (d) => d.x || 0)
+        .attr('cy', (d) => d.y || 0)
         .attr('r', (d) => radius(d, selectedId) + 7);
 
       criticalMarker
-        .attr('x', (d) => d.x ?? 0)
-        .attr('y', (d) => (d.y ?? 0) - radius(d, selectedId) - 2);
+        .attr('x', (d) => d.x || 0)
+        .attr('y', (d) => (d.y || 0) - radius(d, selectedId) - 2);
 
       if (selectedId && glowCircle1 && glowCircle2) {
         const sel = simNodes.find(n => n.id === selectedId);
         if (sel) {
           const baseR = radius(sel, selectedId);
-          glowCircle1.attr('cx', sel.x ?? 0).attr('cy', sel.y ?? 0).attr('r', baseR + 8);
-          glowCircle2.attr('cx', sel.x ?? 0).attr('cy', sel.y ?? 0).attr('r', baseR + 18);
+          glowCircle1.attr('cx', sel.x || 0).attr('cy', sel.y || 0).attr('r', baseR + 8);
+          glowCircle2.attr('cx', sel.x || 0).attr('cy', sel.y || 0).attr('r', baseR + 18);
         }
       }
     });

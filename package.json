@@ -7,7 +7,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:e2e": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:report": "node scripts/generate-test-report.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -24,6 +28,7 @@
     "simhash": "^0.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/d3": "^7.4.3",
     "@types/node": "^22.10.2",
     "@types/papaparse": "^5.3.15",
