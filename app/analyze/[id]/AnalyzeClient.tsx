@@ -21,6 +21,7 @@ import { TrustScoreCard } from '@/components/TrustScoreCard';
 import { DeploymentConfidenceCard } from '@/components/DeploymentConfidenceCard';
 import { BusinessImpactPanel } from '@/components/BusinessImpactPanel';
 import { ConsequenceForecast } from '@/components/ConsequenceForecast';
+import { ExecutiveCommandCenter } from '@/components/business/ExecutiveCommandCenter';
 import { useViewMode } from '@/contexts/ViewModeContext';
 import { buildBusinessImpactFromNode } from '@/lib/business-intelligence/business-impact';
 import type {
@@ -382,6 +383,16 @@ function AnalyzeContent() {
 
         {collapseBanner && (
           <SecurityCollapseBanner collapse={collapseBanner} criticalFindings={analysis.critical_vulnerabilities} />
+        )}
+
+        {mode === 'business' && (
+          <ExecutiveCommandCenter
+            analysis={analysis}
+            trust={trustScore}
+            deploymentConfidence={deploymentConfidence}
+            businessTranslations={businessTranslations}
+            consequenceForecast={consequenceForecast}
+          />
         )}
 
         {mode === 'business' && (
