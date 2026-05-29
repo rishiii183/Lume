@@ -23,6 +23,8 @@ import { BusinessImpactPanel } from '@/components/BusinessImpactPanel';
 import { ConsequenceForecast } from '@/components/ConsequenceForecast';
 import { ExecutiveCommandCenter } from '@/components/business/ExecutiveCommandCenter';
 import { FinancialImpactCard } from '@/components/business/FinancialImpactCard';
+import { ComplianceScoreCard } from '@/components/business/ComplianceScoreCard';
+import { ComplianceRiskCenter } from '@/components/business/ComplianceRiskCenter';
 import { RiskTimeline } from '@/components/business/RiskTimeline';
 import { useViewMode } from '@/contexts/ViewModeContext';
 import { buildBusinessImpactFromNode } from '@/lib/business-intelligence/business-impact';
@@ -424,6 +426,13 @@ function AnalyzeContent() {
           <div className="grid xl:grid-cols-2 gap-6">
             <FinancialImpactCard analysis={analysis} nodes={nodes} />
             <RiskTimeline analysis={analysis} />
+          </div>
+        )}
+
+        {mode === 'business' && (
+          <div className="grid xl:grid-cols-2 gap-6">
+            <ComplianceScoreCard analysis={analysis} nodes={nodes} />
+            <ComplianceRiskCenter analysis={analysis} nodes={nodes} />
           </div>
         )}
 
