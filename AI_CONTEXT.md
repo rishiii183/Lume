@@ -12,6 +12,15 @@ Features:
 * Executive Command Center
 * Deployment Gate
 
+### Phase 2
+
+Status: Completed
+
+Features:
+
+* Rupee Impact Calculator
+* Risk Timeline
+
 ## Existing Core Features
 
 * Repository analysis and scoring pipeline
@@ -30,12 +39,19 @@ Features:
 * Executive Command Center surfaces the rating, trust score, deployment recommendation, top business risk, and a short executive summary at the top of Business View.
 * Deployment Gate converts executive signals into a clear release decision with the top three reasons.
 
+## Phase 2 Feature Summary
+
+* Rupee Impact Calculator translates repository risk into estimated fix cost, incident exposure, and operational exposure using deterministic business formulas.
+* Risk Timeline shows how business risk evolves over 30, 60, and 90 days if no action is taken.
+* Both features reuse existing analysis output and render only in Business View.
+
 ## Implementation Notes
 
 * Phase 1 is read-only and reuses the existing analysis payload, trust score, deployment confidence, executive summary, and business translation data.
 * Business View integrations were added to both the analysis page and the roadmap page without changing Technical View rendering.
 * The new intelligence helpers live under `lib/business-intelligence/` and the new UI lives under `components/business/`.
 * The executive summary shown in the new command center is capped to two sentences for presentation use.
+* Phase 2 adds a deterministic financial-impact calculator and risk timeline on top of the same existing analysis payload with no schema or API changes.
 
 ## Created Files
 
@@ -45,6 +61,10 @@ Features:
 * `components/business/DeploymentGate.tsx`
 * `components/business/ExecutiveCommandCenter.tsx`
 * `AI_CONTEXT.md`
+* `lib/business-intelligence/financial-impact.ts`
+* `lib/business-intelligence/risk-timeline.ts`
+* `components/business/FinancialImpactCard.tsx`
+* `components/business/RiskTimeline.tsx`
 
 ## Business View Features
 
@@ -59,6 +79,9 @@ Features:
 * Executive command center
 * Software credit rating
 * Deployment gate
+* Rupee Impact Calculator
+* Financial impact analysis card
+* Risk Evolution Timeline
 
 ## Technical View Features
 

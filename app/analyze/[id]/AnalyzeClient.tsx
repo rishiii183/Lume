@@ -22,6 +22,8 @@ import { DeploymentConfidenceCard } from '@/components/DeploymentConfidenceCard'
 import { BusinessImpactPanel } from '@/components/BusinessImpactPanel';
 import { ConsequenceForecast } from '@/components/ConsequenceForecast';
 import { ExecutiveCommandCenter } from '@/components/business/ExecutiveCommandCenter';
+import { FinancialImpactCard } from '@/components/business/FinancialImpactCard';
+import { RiskTimeline } from '@/components/business/RiskTimeline';
 import { useViewMode } from '@/contexts/ViewModeContext';
 import { buildBusinessImpactFromNode } from '@/lib/business-intelligence/business-impact';
 import type {
@@ -416,6 +418,13 @@ function AnalyzeContent() {
             customerImpact={customerImpact}
             ignoreConsequences={ignoreConsequences}
           />
+        )}
+
+        {mode === 'business' && (
+          <div className="grid xl:grid-cols-2 gap-6">
+            <FinancialImpactCard analysis={analysis} nodes={nodes} />
+            <RiskTimeline analysis={analysis} />
+          </div>
         )}
 
         <SecurityOverview analysis={analysis} nodes={nodes} />
